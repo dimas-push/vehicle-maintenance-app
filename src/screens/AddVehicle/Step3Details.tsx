@@ -7,6 +7,7 @@ import { findOrCreateBrand, findOrCreateVehicleType } from "../../repositories/c
 import { recalculateSchedules } from "../../repositories/scheduleRepository";
 import { notifyDueSchedules } from "../../services/notifications";
 import { pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../../services/photos";
+import { showErrorAlert } from "../../utils/errorAlert";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { displayToKm } from "../../utils/units";
 import { vehicleClassIcon } from "../../utils/vehicleIcon";
@@ -34,7 +35,7 @@ export default function Step3Details({ route, navigation }: Props) {
             const uri = await takeVehiclePhoto();
             if (uri) setPhotoUri(uri);
           } catch (err) {
-            Alert.alert("Couldn't open camera", String(err instanceof Error ? err.message : err));
+            showErrorAlert("Couldn't open camera", err);
           }
         },
       },
@@ -45,7 +46,7 @@ export default function Step3Details({ route, navigation }: Props) {
             const uri = await pickVehiclePhotoFromLibrary();
             if (uri) setPhotoUri(uri);
           } catch (err) {
-            Alert.alert("Couldn't open photo library", String(err instanceof Error ? err.message : err));
+            showErrorAlert("Couldn't open photo library", err);
           }
         },
       },
@@ -84,7 +85,7 @@ export default function Step3Details({ route, navigation }: Props) {
       await notifyDueSchedules(vehicle.id);
       navigation.getParent()?.goBack();
     } catch (err) {
-      Alert.alert("Failed to save", String(err));
+      showErrorAlert("Couldn't save vehicle", err);
     } finally {
       setSaving(false);
     }

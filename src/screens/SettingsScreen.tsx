@@ -11,6 +11,7 @@ import { listVehicles } from "../repositories/vehicleRepository";
 import { recalculateSchedules } from "../repositories/scheduleRepository";
 import { notifyDueSchedules } from "../services/notifications";
 import { exportBackup, importBackup } from "../services/backup";
+import { showErrorAlert } from "../utils/errorAlert";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import type { VehicleTabsParamList } from "../navigation/VehicleTabs";
 import { colors, radius, shadow, spacing, typography } from "../theme";
@@ -67,6 +68,8 @@ export default function SettingsScreen({ navigation }: Props) {
       }
 
       Alert.alert("Saved", "Reminder thresholds updated for all vehicles.");
+    } catch (err) {
+      showErrorAlert("Couldn't save reminder settings", err);
     } finally {
       setSaving(false);
     }
@@ -77,7 +80,7 @@ export default function SettingsScreen({ navigation }: Props) {
     try {
       await exportBackup();
     } catch (err) {
-      Alert.alert("Export failed", String(err instanceof Error ? err.message : err));
+      showErrorAlert("Export failed", err);
     } finally {
       setExporting(false);
     }
@@ -95,7 +98,7 @@ export default function SettingsScreen({ navigation }: Props) {
           : "";
       Alert.alert("Restore complete", `Imported ${summary.vehiclesImported} vehicle(s).${skippedNote}`);
     } catch (err) {
-      Alert.alert("Restore failed", String(err instanceof Error ? err.message : err));
+      showErrorAlert("Restore failed", err);
     } finally {
       setImporting(false);
     }

@@ -40,6 +40,7 @@ import { getReminderThresholds } from "../../utils/reminderSettings";
 import { notifyDueSchedules } from "../../services/notifications";
 import { deleteVehiclePhoto, pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../../services/photos";
 import { exportServiceReportCsv, exportServiceReportPdf } from "../../services/report";
+import { showErrorAlert } from "../../utils/errorAlert";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatDistance } from "../../utils/units";
 import { vehicleClassIcon } from "../../utils/vehicleIcon";
@@ -106,9 +107,13 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            deleteVehiclePhoto(vehicle.photo_uri);
-            await deleteVehicle(vehicleId);
-            navigation.goBack();
+            try {
+              deleteVehiclePhoto(vehicle.photo_uri);
+              await deleteVehicle(vehicleId);
+              navigation.goBack();
+            } catch (err) {
+              showErrorAlert("Couldn't delete vehicle", err);
+            }
           },
         },
       ]
@@ -117,8 +122,12 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
 
   async function handleEditSave(nickname: string, plateNumber: string | null, vin: string | null) {
     setEditModalVisible(false);
-    await updateVehicleDetails(vehicleId, { nickname, plate_number: plateNumber, vin });
-    await reload();
+    try {
+      await updateVehicleDetails(vehicleId, { nickname, plate_number: plateNumber, vin });
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't save changes", err);
+    }
   }
 
   function handleExportReport() {
@@ -129,7 +138,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           try {
             await exportServiceReportPdf(vehicleId, unit, volumeUnit);
           } catch (err) {
-            Alert.alert("Export failed", String(err instanceof Error ? err.message : err));
+            showErrorAlert("Export failed", err);
           }
         },
       },
@@ -139,7 +148,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           try {
             await exportServiceReportCsv(vehicleId);
           } catch (err) {
-            Alert.alert("Export failed", String(err instanceof Error ? err.message : err));
+            showErrorAlert("Export failed", err);
           }
         },
       },
@@ -156,7 +165,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
             const uri = await takeVehiclePhoto();
             if (uri) await applyPhoto(uri);
           } catch (err) {
-            Alert.alert("Couldn't open camera", String(err instanceof Error ? err.message : err));
+            showErrorAlert("Couldn't open camera", err);
           }
         },
       },
@@ -167,7 +176,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
             const uri = await pickVehiclePhotoFromLibrary();
             if (uri) await applyPhoto(uri);
           } catch (err) {
-            Alert.alert("Couldn't open photo library", String(err instanceof Error ? err.message : err));
+            showErrorAlert("Couldn't open photo library", err);
           }
         },
       },
@@ -186,7 +195,12 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
 
   async function applyPhoto(uri: string | null) {
     const previous = vehicle?.photo_uri ?? null;
-    await updateVehiclePhoto(vehicleId, uri);
+    try {
+      await updateVehiclePhoto(vehicleId, uri);
+    } catch (err) {
+      showErrorAlert("Couldn't save photo", err);
+      return;
+    }
     if (previous && previous !== uri) deleteVehiclePhoto(previous);
     await reload();
   }
@@ -211,11 +225,15 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
 
   async function handleUpdateKm(newKm: number, photoUri: string | null) {
     setKmModalVisible(false);
-    await updateCurrentKm(vehicleId, newKm);
-    await recordOdometerReading(vehicleId, newKm, photoUri);
-    await recalculateSchedules(vehicleId);
-    await notifyDueSchedules(vehicleId);
-    await reload();
+    try {
+      await updateCurrentKm(vehicleId, newKm);
+      await recordOdometerReading(vehicleId, newKm, photoUri);
+      await recalculateSchedules(vehicleId);
+      await notifyDueSchedules(vehicleId);
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't update odometer", err);
+    }
   }
 
   async function handleMarkDoneSubmit(
@@ -226,18 +244,22 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   ) {
     if (!vehicle || !markDoneItem) return;
     setMarkDoneItem(null);
-    await recordMaintenanceDone({
-      vehicleId,
-      maintenanceItemId: markDoneItem.maintenance_item_id,
-      doneAtKm: vehicle.current_km,
-      doneAtDate: new Date().toISOString().slice(0, 10),
-      notes,
-      cost,
-      photoUri,
-      shopId,
-    });
-    await notifyDueSchedules(vehicleId);
-    await reload();
+    try {
+      await recordMaintenanceDone({
+        vehicleId,
+        maintenanceItemId: markDoneItem.maintenance_item_id,
+        doneAtKm: vehicle.current_km,
+        doneAtDate: new Date().toISOString().slice(0, 10),
+        notes,
+        cost,
+        photoUri,
+        shopId,
+      });
+      await notifyDueSchedules(vehicleId);
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't save service record", err);
+    }
   }
 
   async function handleSaveLoan(
@@ -247,8 +269,12 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     termMonths: number
   ) {
     setLoanModalVisible(false);
-    await setLoanForVehicle(vehicleId, { lender, monthly_payment: monthlyPayment, start_date: startDate, term_months: termMonths });
-    await reload();
+    try {
+      await setLoanForVehicle(vehicleId, { lender, monthly_payment: monthlyPayment, start_date: startDate, term_months: termMonths });
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't save loan", err);
+    }
   }
 
   function handleSnooze(schedule: ScheduleRow) {
@@ -264,20 +290,28 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   }
 
   async function applySnooze(scheduleId: number, days: number | null) {
-    if (days == null) {
-      await snoozeSchedule(scheduleId, null);
-    } else {
-      const until = new Date();
-      until.setDate(until.getDate() + days);
-      await snoozeSchedule(scheduleId, until.toISOString().slice(0, 10));
+    try {
+      if (days == null) {
+        await snoozeSchedule(scheduleId, null);
+      } else {
+        const until = new Date();
+        until.setDate(until.getDate() + days);
+        await snoozeSchedule(scheduleId, until.toISOString().slice(0, 10));
+      }
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't update snooze", err);
     }
-    await reload();
   }
 
   async function handleAddDocument(documentType: DocumentType, label: string, expiryDate: string) {
     setDocumentModalVisible(false);
-    await createDocument({ vehicle_id: vehicleId, document_type: documentType, label, expiry_date: expiryDate });
-    await reload();
+    try {
+      await createDocument({ vehicle_id: vehicleId, document_type: documentType, label, expiry_date: expiryDate });
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't add document", err);
+    }
   }
 
   function confirmDeleteDocument(doc: VehicleDocument) {
@@ -287,8 +321,12 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          await deleteDocument(doc.id);
-          await reload();
+          try {
+            await deleteDocument(doc.id);
+            await reload();
+          } catch (err) {
+            showErrorAlert("Couldn't delete document", err);
+          }
         },
       },
     ]);

@@ -10,6 +10,7 @@ import {
   listFuelLogs,
 } from "../../repositories/fuelRepository";
 import { getVehicle } from "../../repositories/vehicleRepository";
+import { showErrorAlert } from "../../utils/errorAlert";
 import type { FuelLog } from "../../types/models";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
@@ -44,15 +45,19 @@ export default function FuelLogScreen({ route }: Props) {
 
   async function handleAdd(filledAtKm: number, volumeLiters: number, cost: number | null, fullTank: boolean) {
     setModalVisible(false);
-    await createFuelLog({
-      vehicle_id: vehicleId,
-      filled_at_km: filledAtKm,
-      filled_at_date: new Date().toISOString().slice(0, 10),
-      volume_liters: volumeLiters,
-      cost,
-      full_tank: fullTank,
-    });
-    await reload();
+    try {
+      await createFuelLog({
+        vehicle_id: vehicleId,
+        filled_at_km: filledAtKm,
+        filled_at_date: new Date().toISOString().slice(0, 10),
+        volume_liters: volumeLiters,
+        cost,
+        full_tank: fullTank,
+      });
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't save fill-up", err);
+    }
   }
 
   function confirmDelete(log: FuelLog) {
@@ -62,8 +67,12 @@ export default function FuelLogScreen({ route }: Props) {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          await deleteFuelLog(log.id);
-          await reload();
+          try {
+            await deleteFuelLog(log.id);
+            await reload();
+          } catch (err) {
+            showErrorAlert("Couldn't delete fill-up", err);
+          }
         },
       },
     ]);

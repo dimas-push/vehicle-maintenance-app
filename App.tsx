@@ -9,6 +9,7 @@ import { seedDummyVehiclesIfEmpty } from './src/db/seedDummyData';
 import { initNotifications } from './src/services/notifications';
 import { UnitPreferenceProvider } from './src/context/UnitPreferenceContext';
 import RootNavigator from './src/navigation/RootNavigator';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { colors, spacing, typography } from './src/theme';
 
 export default function App() {
@@ -47,9 +48,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <UnitPreferenceProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
+        <ErrorBoundary>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </ErrorBoundary>
         <StatusBar style="dark" />
       </UnitPreferenceProvider>
     </SafeAreaProvider>

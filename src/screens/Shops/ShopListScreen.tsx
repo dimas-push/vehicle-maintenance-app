@@ -3,6 +3,7 @@ import { Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from "rea
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { createShop, deleteShop, listShops, updateShop } from "../../repositories/shopRepository";
+import { showErrorAlert } from "../../utils/errorAlert";
 import type { ServiceShop } from "../../types/models";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 import AddEditShopModal from "./AddEditShopModal";
@@ -30,12 +31,16 @@ export default function ShopListScreen() {
 
   async function handleSubmit(name: string, phone: string | null, address: string | null) {
     setModalVisible(false);
-    if (editingShop) {
-      await updateShop(editingShop.id, { name, phone, address });
-    } else {
-      await createShop({ name, phone, address });
+    try {
+      if (editingShop) {
+        await updateShop(editingShop.id, { name, phone, address });
+      } else {
+        await createShop({ name, phone, address });
+      }
+      reload();
+    } catch (err) {
+      showErrorAlert("Couldn't save shop", err);
     }
-    reload();
   }
 
   function confirmDelete(shop: ServiceShop) {
@@ -45,8 +50,12 @@ export default function ShopListScreen() {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          await deleteShop(shop.id);
-          reload();
+          try {
+            await deleteShop(shop.id);
+            reload();
+          } catch (err) {
+            showErrorAlert("Couldn't delete shop", err);
+          }
         },
       },
     ]);

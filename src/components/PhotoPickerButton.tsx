@@ -1,6 +1,7 @@
 import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../services/photos";
+import { showErrorAlert } from "../utils/errorAlert";
 import { colors, radius, spacing, typography } from "../theme";
 
 export default function PhotoPickerButton({
@@ -21,7 +22,7 @@ export default function PhotoPickerButton({
             const uri = await takeVehiclePhoto();
             if (uri) onChange(uri);
           } catch (err) {
-            Alert.alert("Couldn't open camera", String(err instanceof Error ? err.message : err));
+            showErrorAlert("Couldn't open camera", err);
           }
         },
       },
@@ -32,7 +33,7 @@ export default function PhotoPickerButton({
             const uri = await pickVehiclePhotoFromLibrary();
             if (uri) onChange(uri);
           } catch (err) {
-            Alert.alert("Couldn't open photo library", String(err instanceof Error ? err.message : err));
+            showErrorAlert("Couldn't open photo library", err);
           }
         },
       },
