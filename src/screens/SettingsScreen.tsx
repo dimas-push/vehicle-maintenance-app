@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
 import { type DistanceUnit, displayToKm, kmToDisplay } from "../utils/units";
@@ -7,6 +7,7 @@ import { getReminderThresholds, setReminderThresholds } from "../utils/reminderS
 import { listVehicles } from "../repositories/vehicleRepository";
 import { recalculateSchedules } from "../repositories/scheduleRepository";
 import { notifyDueSchedules } from "../services/notifications";
+import { exportBackup, importBackup } from "../services/backup";
 import { colors, radius, shadow, spacing, typography } from "../theme";
 
 const OPTIONS: { value: DistanceUnit; label: string; hint: string }[] = [
@@ -19,6 +20,8 @@ export default function SettingsScreen() {
   const [kmInput, setKmInput] = useState("");
   const [daysInput, setDaysInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     getReminderThresholds().then(({ kmThreshold, daysThreshold }) => {
@@ -54,8 +57,37 @@ export default function SettingsScreen() {
     }
   }
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await exportBackup();
+    } catch (err) {
+      Alert.alert("Export failed", String(err instanceof Error ? err.message : err));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleImport() {
+    setImporting(true);
+    try {
+      const summary = await importBackup();
+      if (!summary) return; // user canceled the picker
+
+      const skippedNote =
+        summary.vehiclesSkipped.length > 0
+          ? `\n\nSkipped (unknown vehicle type): ${summary.vehiclesSkipped.join(", ")}`
+          : "";
+      Alert.alert("Restore complete", `Imported ${summary.vehiclesImported} vehicle(s).${skippedNote}`);
+    } catch (err) {
+      Alert.alert("Restore failed", String(err instanceof Error ? err.message : err));
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.sectionTitle}>Distance Unit</Text>
       {OPTIONS.map((option) => {
         const selected = option.value === unit;
@@ -104,12 +136,43 @@ export default function SettingsScreen() {
           <Text style={styles.saveButtonText}>{saving ? "Saving..." : "Save"}</Text>
         </Pressable>
       </View>
-    </View>
+
+      <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Backup & Restore</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardHint}>
+          Your data lives only on this device. Export a backup file regularly, or before
+          uninstalling or switching phones.
+        </Text>
+
+        <Pressable
+          style={[styles.outlineButton, exporting && styles.saveButtonDisabled]}
+          onPress={handleExport}
+          disabled={exporting}
+        >
+          <Ionicons name="download-outline" size={18} color={colors.primary} />
+          <Text style={styles.outlineButtonText}>
+            {exporting ? "Exporting..." : "Export Backup"}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.outlineButton, styles.outlineButtonSpacing, importing && styles.saveButtonDisabled]}
+          onPress={handleImport}
+          disabled={importing}
+        >
+          <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
+          <Text style={styles.outlineButtonText}>
+            {importing ? "Restoring..." : "Restore from Backup"}
+          </Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
+  container: { flex: 1, backgroundColor: colors.background },
+  contentContainer: { padding: spacing.md, paddingBottom: spacing.xl },
   sectionTitle: { ...typography.label, marginBottom: spacing.sm },
   sectionSpacing: { marginTop: spacing.lg },
   option: {
@@ -155,4 +218,16 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: { color: "#fff", fontWeight: "700" },
+  outlineButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+  },
+  outlineButtonSpacing: { marginTop: spacing.sm },
+  outlineButtonText: { color: colors.primary, fontWeight: "700" },
 });
