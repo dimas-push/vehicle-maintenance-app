@@ -77,14 +77,14 @@ interface BackupVehicle {
   fuel_type?: FuelType | null;
 }
 
-interface BackupFile {
+export interface BackupFile {
   formatVersion: number;
   exportedAt: string;
   vehicles: BackupVehicle[];
   ownerProfile?: OwnerProfile | null;
 }
 
-async function buildBackupData(): Promise<BackupFile> {
+export async function buildBackupData(): Promise<BackupFile> {
   const vehicles = await listVehicles();
 
   // Photos (vehicle, per-record, odometer) are intentionally not included —
@@ -193,19 +193,8 @@ export interface ImportSummary {
   vehiclesSkipped: string[];
 }
 
-export async function importBackup(): Promise<ImportSummary | null> {
-  const picked = await DocumentPicker.getDocumentAsync({
-    type: ["application/json", "*/*"],
-    copyToCacheDirectory: true,
-  });
-  if (picked.canceled || !picked.assets?.[0]) return null;
-
-  const asset = picked.assets[0];
-  const text =
-    Platform.OS === "web" && asset.file
-      ? await asset.file.text()
-      : await new File(asset.uri).text();
-
+/** Parses raw backup JSON text into a validated BackupFile, or throws a user-facing error. */
+export function parseBackupJson(text: string): BackupFile {
   let data: BackupFile;
   try {
     data = JSON.parse(text);
@@ -215,7 +204,11 @@ export async function importBackup(): Promise<ImportSummary | null> {
   if (!Array.isArray(data.vehicles)) {
     throw new Error("This file isn't valid backup data (missing vehicles list).");
   }
+  return data;
+}
 
+/** Applies a parsed backup — used by both the local file import and cloud restore flows. */
+export async function applyBackupData(data: BackupFile): Promise<ImportSummary> {
   const summary: ImportSummary = { vehiclesImported: 0, vehiclesSkipped: [] };
 
   for (const backupVehicle of data.vehicles) {
@@ -301,4 +294,20 @@ export async function importBackup(): Promise<ImportSummary | null> {
   }
 
   return summary;
+}
+
+export async function importBackup(): Promise<ImportSummary | null> {
+  const picked = await DocumentPicker.getDocumentAsync({
+    type: ["application/json", "*/*"],
+    copyToCacheDirectory: true,
+  });
+  if (picked.canceled || !picked.assets?.[0]) return null;
+
+  const asset = picked.assets[0];
+  const text =
+    Platform.OS === "web" && asset.file
+      ? await asset.file.text()
+      : await new File(asset.uri).text();
+
+  return applyBackupData(parseBackupJson(text));
 }

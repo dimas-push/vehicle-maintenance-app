@@ -31,6 +31,7 @@ import {
   type NotificationPermissionState,
 } from "../services/notifications";
 import { exportBackup, importBackup } from "../services/backup";
+import { backupToCloud, restoreFromCloud } from "../services/cloudBackup";
 import { showErrorAlert } from "../utils/errorAlert";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import type { VehicleTabsParamList } from "../navigation/VehicleTabs";
@@ -59,6 +60,8 @@ export default function SettingsScreen({ navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [cloudBackingUp, setCloudBackingUp] = useState(false);
+  const [cloudRestoring, setCloudRestoring] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermissionState | null>(null);
   const [profile, setProfile] = useState<OwnerProfile | null>(null);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
@@ -181,6 +184,40 @@ export default function SettingsScreen({ navigation }: Props) {
       showErrorAlert("Restore failed", err);
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function handleCloudBackup() {
+    if (!user) return;
+    setCloudBackingUp(true);
+    try {
+      await backupToCloud(user.uid);
+      Alert.alert("Backed up", "Your data has been backed up to the cloud.");
+    } catch (err) {
+      showErrorAlert("Cloud backup failed", err);
+    } finally {
+      setCloudBackingUp(false);
+    }
+  }
+
+  async function handleCloudRestore() {
+    if (!user) return;
+    setCloudRestoring(true);
+    try {
+      const summary = await restoreFromCloud(user.uid);
+      if (!summary) {
+        Alert.alert("No cloud backup found", "This account hasn't backed up to the cloud yet.");
+        return;
+      }
+      const skippedNote =
+        summary.vehiclesSkipped.length > 0
+          ? `\n\nSkipped (unknown vehicle type): ${summary.vehiclesSkipped.join(", ")}`
+          : "";
+      Alert.alert("Restore complete", `Imported ${summary.vehiclesImported} vehicle(s).${skippedNote}`);
+    } catch (err) {
+      showErrorAlert("Cloud restore failed", err);
+    } finally {
+      setCloudRestoring(false);
     }
   }
 
@@ -326,8 +363,9 @@ export default function SettingsScreen({ navigation }: Props) {
       <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Backup & Restore</Text>
       <View style={styles.card}>
         <Text style={styles.cardHint}>
-          Your data lives only on this device. Export a backup file regularly, or before
-          uninstalling or switching phones.
+          {user
+            ? "Export a backup file, or back it up to the cloud tied to your account."
+            : "Your data lives only on this device. Export a backup file regularly, or before uninstalling or switching phones."}
         </Text>
 
         <Pressable
@@ -346,11 +384,37 @@ export default function SettingsScreen({ navigation }: Props) {
           onPress={handleImport}
           disabled={importing}
         >
-          <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
+          <Ionicons name="folder-open-outline" size={18} color={colors.primary} />
           <Text style={styles.outlineButtonText}>
-            {importing ? "Restoring..." : "Restore from Backup"}
+            {importing ? "Restoring..." : "Restore from File"}
           </Text>
         </Pressable>
+
+        {user && (
+          <>
+            <Pressable
+              style={[styles.outlineButton, styles.outlineButtonSpacing, cloudBackingUp && styles.saveButtonDisabled]}
+              onPress={handleCloudBackup}
+              disabled={cloudBackingUp}
+            >
+              <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
+              <Text style={styles.outlineButtonText}>
+                {cloudBackingUp ? "Backing up..." : "Back Up to Cloud"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.outlineButton, styles.outlineButtonSpacing, cloudRestoring && styles.saveButtonDisabled]}
+              onPress={handleCloudRestore}
+              disabled={cloudRestoring}
+            >
+              <Ionicons name="cloud-download-outline" size={18} color={colors.primary} />
+              <Text style={styles.outlineButtonText}>
+                {cloudRestoring ? "Restoring..." : "Restore from Cloud"}
+              </Text>
+            </Pressable>
+          </>
+        )}
       </View>
 
       <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Service Shops</Text>
