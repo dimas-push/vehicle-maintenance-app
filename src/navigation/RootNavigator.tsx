@@ -1,13 +1,17 @@
+import { Pressable } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
 import VehicleListScreen from "../screens/VehicleListScreen";
 import AddVehicleWizard from "../screens/AddVehicle/AddVehicleWizard";
 import VehicleDetailScreen from "../screens/VehicleDetail/VehicleDetailScreen";
+import SettingsScreen from "../screens/SettingsScreen";
 import { colors } from "../theme";
 
 export type RootStackParamList = {
   VehicleList: undefined;
   AddVehicle: undefined;
   VehicleDetail: { vehicleId: number };
+  Settings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -26,7 +30,14 @@ export default function RootNavigator() {
       <Stack.Screen
         name="VehicleList"
         component={VehicleListScreen}
-        options={{ headerTitle: "My Vehicles" }}
+        options={({ navigation }) => ({
+          headerTitle: "My Vehicles",
+          headerRight: () => (
+            <Pressable onPress={() => navigation.navigate("Settings")} hitSlop={8}>
+              <Ionicons name="settings-outline" size={22} color={colors.primary} />
+            </Pressable>
+          ),
+        })}
       />
       <Stack.Screen
         name="AddVehicle"
@@ -37,6 +48,11 @@ export default function RootNavigator() {
         name="VehicleDetail"
         component={VehicleDetailScreen}
         options={{ headerTitle: "Vehicle Details" }}
+      />
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ headerTitle: "Settings" }}
       />
     </Stack.Navigator>
   );

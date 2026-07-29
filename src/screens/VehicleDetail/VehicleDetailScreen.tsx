@@ -19,6 +19,8 @@ import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 import { STATUS_LABEL, STATUS_STYLE } from "../../utils/scheduleStatusPresentation";
 import { notifyDueSchedules } from "../../services/notifications";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import { formatDistance } from "../../utils/units";
 import UpdateKmModal from "./UpdateKmModal";
 import EditVehicleModal from "./EditVehicleModal";
 
@@ -36,6 +38,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
   const [kmModalVisible, setKmModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const { unit } = useUnitPreference();
 
   const reload = useCallback(async () => {
     const [v, s] = await Promise.all([getVehicle(vehicleId), listSchedulesForVehicle(vehicleId)]);
@@ -101,7 +104,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     if (!vehicle) return;
     Alert.alert(
       "Mark as done?",
-      `${item.item_name} will be logged as done today at ${vehicle.current_km.toLocaleString("en-US")} km.`,
+      `${item.item_name} will be logged as done today at ${formatDistance(vehicle.current_km, unit)}.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -132,7 +135,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         <View style={styles.kmRow}>
           <View>
             <Text style={typography.caption}>Current odometer</Text>
-            <Text style={styles.kmValue}>{vehicle.current_km.toLocaleString("en-US")} km</Text>
+            <Text style={styles.kmValue}>{formatDistance(vehicle.current_km, unit)}</Text>
           </View>
           <Pressable style={styles.kmButton} onPress={() => setKmModalVisible(true)}>
             <Ionicons name="speedometer-outline" size={16} color={colors.primary} />
@@ -157,7 +160,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                 </View>
               </View>
               <Text style={styles.cardSub}>
-                {item.due_km != null ? `Due at: ${item.due_km.toLocaleString("en-US")} km` : ""}
+                {item.due_km != null ? `Due at: ${formatDistance(item.due_km, unit)}` : ""}
                 {item.due_km != null && item.due_date ? " • " : ""}
                 {item.due_date ? `by ${formatDueDate(item.due_date)}` : ""}
               </Text>
@@ -173,6 +176,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
       <UpdateKmModal
         visible={kmModalVisible}
         currentKm={vehicle.current_km}
+        unit={unit}
         onCancel={() => setKmModalVisible(false)}
         onSubmit={handleUpdateKm}
       />

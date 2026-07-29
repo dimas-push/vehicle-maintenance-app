@@ -5,6 +5,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createVehicle } from "../../repositories/vehicleRepository";
 import { recalculateSchedules } from "../../repositories/scheduleRepository";
 import { notifyDueSchedules } from "../../services/notifications";
+import { useUnitPreference } from "../../context/UnitPreferenceContext";
+import { displayToKm } from "../../utils/units";
 import type { AddVehicleStackParamList } from "./WizardContext";
 import WizardProgress from "../../components/WizardProgress";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
@@ -17,15 +19,16 @@ export default function Step3Details({ route, navigation }: Props) {
   const [plateNumber, setPlateNumber] = useState("");
   const [currentKm, setCurrentKm] = useState("");
   const [saving, setSaving] = useState(false);
+  const { unit } = useUnitPreference();
 
   async function handleSave() {
-    const km = Number(currentKm);
+    const entered = Number(currentKm);
     if (!nickname.trim()) {
       Alert.alert("Vehicle name is required", "Example: \"Dad's Bike\" or \"Blue Vario\"");
       return;
     }
-    if (!Number.isFinite(km) || km < 0) {
-      Alert.alert("Invalid odometer reading", "Please enter a valid number of kilometers");
+    if (!Number.isFinite(entered) || entered < 0) {
+      Alert.alert("Invalid odometer reading", `Please enter a valid number of ${unit}`);
       return;
     }
 
@@ -35,7 +38,7 @@ export default function Step3Details({ route, navigation }: Props) {
         vehicle_type_id: vehicleTypeId,
         nickname: nickname.trim(),
         plate_number: plateNumber.trim() || null,
-        current_km: km,
+        current_km: Math.round(displayToKm(entered, unit)),
       });
       await recalculateSchedules(vehicle.id);
       await notifyDueSchedules(vehicle.id);
@@ -79,10 +82,10 @@ export default function Step3Details({ route, navigation }: Props) {
         autoCapitalize="characters"
       />
 
-      <Text style={styles.label}>Current odometer (km)</Text>
+      <Text style={styles.label}>Current odometer ({unit})</Text>
       <TextInput
         style={styles.input}
-        placeholder="12000"
+        placeholder={unit === "mi" ? "7500" : "12000"}
         placeholderTextColor={colors.textSubtle}
         value={currentKm}
         onChangeText={setCurrentKm}

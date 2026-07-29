@@ -9,6 +9,8 @@ import type { ScheduleStatus, Vehicle } from "../types/models";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../theme";
 import { STATUS_LABEL, STATUS_STYLE, worstStatus } from "../utils/scheduleStatusPresentation";
+import { useUnitPreference } from "../context/UnitPreferenceContext";
+import { formatDistance } from "../utils/units";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VehicleList">;
 
@@ -19,6 +21,7 @@ async function worstStatusFor(vehicleId: number): Promise<ScheduleStatus | null>
 
 export default function VehicleListScreen({ navigation }: Props) {
   const [vehicles, setVehicles] = useState<(Vehicle & { worstStatus: ScheduleStatus | null })[]>([]);
+  const { unit } = useUnitPreference();
 
   useFocusEffect(
     useCallback(() => {
@@ -59,7 +62,7 @@ export default function VehicleListScreen({ navigation }: Props) {
                 <View style={styles.cardBody}>
                   <Text style={styles.cardTitle}>{item.nickname}</Text>
                   <Text style={styles.cardSub}>
-                    {item.current_km.toLocaleString("en-US")} km
+                    {formatDistance(item.current_km, unit)}
                     {item.plate_number ? ` • ${item.plate_number}` : ""}
                   </Text>
                 </View>

@@ -1,30 +1,34 @@
 import { useState } from "react";
 import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, radius, spacing, typography } from "../../theme";
+import { type DistanceUnit, displayToKm, formatDistance, kmToDisplay } from "../../utils/units";
 
 export default function UpdateKmModal({
   visible,
   currentKm,
+  unit,
   onCancel,
   onSubmit,
 }: {
   visible: boolean;
   currentKm: number;
+  unit: DistanceUnit;
   onCancel: () => void;
   onSubmit: (newKm: number) => void;
 }) {
-  const [value, setValue] = useState(String(currentKm));
+  const currentDisplay = Math.round(kmToDisplay(currentKm, unit));
+  const [value, setValue] = useState(String(currentDisplay));
 
   function handleSubmit() {
-    const km = Number(value);
-    if (!Number.isFinite(km) || km < currentKm) {
+    const entered = Number(value);
+    if (!Number.isFinite(entered) || entered < currentDisplay) {
       Alert.alert(
         "Invalid odometer reading",
-        `The new reading must be a number and cannot be lower than ${currentKm.toLocaleString("en-US")} km`
+        `The new reading must be a number and cannot be lower than ${formatDistance(currentKm, unit)}`
       );
       return;
     }
-    onSubmit(km);
+    onSubmit(Math.round(displayToKm(entered, unit)));
   }
 
   return (
@@ -32,7 +36,7 @@ export default function UpdateKmModal({
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
           <Text style={styles.title}>Update Current Odometer</Text>
-          <Text style={styles.subtitle}>Last reading: {currentKm.toLocaleString("en-US")} km</Text>
+          <Text style={styles.subtitle}>Last reading: {formatDistance(currentKm, unit)}</Text>
           <TextInput
             style={styles.input}
             value={value}

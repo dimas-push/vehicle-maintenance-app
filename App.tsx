@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getDb } from './src/db';
 import { seedDummyVehiclesIfEmpty } from './src/db/seedDummyData';
 import { initNotifications } from './src/services/notifications';
+import { UnitPreferenceProvider } from './src/context/UnitPreferenceContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { colors, spacing, typography } from './src/theme';
 
@@ -45,10 +46,12 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <RootNavigator />
-      </NavigationContainer>
-      <StatusBar style="dark" />
+      <UnitPreferenceProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+        <StatusBar style="dark" />
+      </UnitPreferenceProvider>
     </SafeAreaProvider>
   );
 }
