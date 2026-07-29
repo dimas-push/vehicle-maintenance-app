@@ -1,8 +1,15 @@
 import { listBrands, listVehicleTypesByBrand } from "../repositories/catalogRepository";
 import { createVehicle, listVehicles } from "../repositories/vehicleRepository";
 import { recalculateSchedules, recordMaintenanceDone } from "../repositories/scheduleRepository";
+import { createDocument } from "../repositories/documentRepository";
 import { notifyDueSchedules } from "../services/notifications";
 import { getDb } from "./index";
+
+function daysFromNow(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -55,11 +62,17 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     purchase_date: daysAgo(900),
   });
   if (engineOilId) {
-    await recordMaintenanceDone(dadsBike.id, engineOilId, 13000, daysAgo(120));
+    await recordMaintenanceDone(dadsBike.id, engineOilId, 13000, daysAgo(120), undefined, 8.5);
   }
   if (sparkPlugId) {
-    await recordMaintenanceDone(dadsBike.id, sparkPlugId, 14800, daysAgo(20));
+    await recordMaintenanceDone(dadsBike.id, sparkPlugId, 14800, daysAgo(20), "New NGK plug", 6);
   }
+  await createDocument({
+    vehicle_id: dadsBike.id,
+    document_type: "insurance",
+    label: "Insurance",
+    expiry_date: daysFromNow(10),
+  });
 
   // Mom's Scooter: regular servicing, everything on track
   const momsScooter = await createVehicle({
@@ -70,8 +83,14 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     purchase_date: daysAgo(400),
   });
   if (engineOilId) {
-    await recordMaintenanceDone(momsScooter.id, engineOilId, 8300, daysAgo(5));
+    await recordMaintenanceDone(momsScooter.id, engineOilId, 8300, daysAgo(5), undefined, 7);
   }
+  await createDocument({
+    vehicle_id: momsScooter.id,
+    document_type: "tax",
+    label: "Annual Tax",
+    expiry_date: daysFromNow(200),
+  });
 
   // Alex's NMAX: approaching the limit (due_soon) for the CVT drive belt
   const alexsNmax = await createVehicle({

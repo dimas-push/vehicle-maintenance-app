@@ -24,7 +24,15 @@
     "plugins": [
       "expo-sqlite",
       "expo-notifications",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow this app to access your photos to set a picture for your vehicle.",
+          "cameraPermission": "Allow this app to access your camera to take a picture of your vehicle.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

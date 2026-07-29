@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { CompositeScreenProps } from "@react-navigation/native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -62,9 +62,13 @@ export default function VehicleListScreen({ navigation }: Props) {
                 style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
                 onPress={() => navigation.navigate("VehicleDetail", { vehicleId: item.id })}
               >
-                <View style={styles.cardIconWrap}>
-                  <MaterialCommunityIcons name="motorbike" size={22} color={colors.primary} />
-                </View>
+                {item.photo_uri ? (
+                  <Image source={{ uri: item.photo_uri }} style={styles.cardPhoto} />
+                ) : (
+                  <View style={styles.cardIconWrap}>
+                    <MaterialCommunityIcons name="motorbike" size={22} color={colors.primary} />
+                  </View>
+                )}
                 <View style={styles.cardBody}>
                   <Text style={styles.cardTitle}>{item.nickname}</Text>
                   <Text style={styles.cardSub}>
@@ -129,6 +133,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: spacing.md,
+  },
+  cardPhoto: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
     marginRight: spacing.md,
   },
   cardBody: { flex: 1 },

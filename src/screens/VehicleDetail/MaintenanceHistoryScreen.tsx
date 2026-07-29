@@ -42,11 +42,22 @@ export default function MaintenanceHistoryScreen({ route }: Props) {
     );
   }
 
+  const totalCost = records.reduce((sum, r) => sum + (r.cost ?? 0), 0);
+  const hasCosts = records.some((r) => r.cost != null);
+
   return (
     <FlatList
       data={records}
       keyExtractor={(r) => String(r.id)}
       contentContainerStyle={styles.listContent}
+      ListHeaderComponent={
+        hasCosts ? (
+          <View style={styles.totalCard}>
+            <Text style={styles.totalLabel}>Total spent</Text>
+            <Text style={styles.totalValue}>{totalCost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+          </View>
+        ) : null
+      }
       renderItem={({ item }) => (
         <View style={styles.card}>
           <View style={styles.iconWrap}>
@@ -56,6 +67,9 @@ export default function MaintenanceHistoryScreen({ route }: Props) {
             <Text style={styles.cardTitle}>{item.item_name}</Text>
             <Text style={styles.cardSub}>
               {formatDate(item.done_at_date)} • {formatDistance(item.done_at_km, unit)}
+              {item.cost != null
+                ? ` • ${item.cost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : ""}
             </Text>
             {item.notes && <Text style={styles.notes}>{item.notes}</Text>}
           </View>
@@ -98,4 +112,12 @@ const styles = StyleSheet.create({
   cardTitle: { ...typography.body, fontWeight: "700" },
   cardSub: { ...typography.caption, marginTop: 2 },
   notes: { ...typography.caption, marginTop: spacing.xs, fontStyle: "italic" },
+  totalCard: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  totalLabel: { ...typography.caption, color: colors.primaryDark },
+  totalValue: { fontSize: 22, fontWeight: "700", color: colors.primaryDark, marginTop: 2 },
 });

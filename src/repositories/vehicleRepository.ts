@@ -7,6 +7,7 @@ export interface NewVehicleInput {
   plate_number?: string | null;
   purchase_date?: string | null;
   current_km: number;
+  photo_uri?: string | null;
 }
 
 export async function listVehicles(): Promise<Vehicle[]> {
@@ -25,14 +26,15 @@ export async function createVehicle(input: NewVehicleInput): Promise<Vehicle> {
 
   const result = await db.runAsync(
     `INSERT INTO vehicles
-       (vehicle_type_id, nickname, plate_number, purchase_date, current_km, current_km_updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+       (vehicle_type_id, nickname, plate_number, purchase_date, current_km, current_km_updated_at, photo_uri)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     input.vehicle_type_id,
     input.nickname,
     input.plate_number ?? null,
     input.purchase_date ?? null,
     input.current_km,
-    now
+    now,
+    input.photo_uri ?? null
   );
 
   const vehicle = await getVehicle(result.lastInsertRowId);
@@ -56,6 +58,11 @@ export async function updateVehicleDetails(
     input.plate_number ?? null,
     vehicleId
   );
+}
+
+export async function updateVehiclePhoto(vehicleId: number, photoUri: string | null): Promise<void> {
+  const db = await getDb();
+  await db.runAsync("UPDATE vehicles SET photo_uri = ? WHERE id = ?", photoUri, vehicleId);
 }
 
 export async function updateCurrentKm(vehicleId: number, currentKm: number): Promise<void> {

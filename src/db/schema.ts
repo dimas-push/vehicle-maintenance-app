@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   purchase_date TEXT,
   current_km INTEGER NOT NULL DEFAULT 0,
   current_km_updated_at TEXT NOT NULL,
+  photo_uri TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -48,6 +49,19 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
   maintenance_item_id INTEGER NOT NULL REFERENCES maintenance_items(id),
   done_at_km INTEGER NOT NULL,
   done_at_date TEXT NOT NULL,
+  cost REAL,
+  notes TEXT
+);
+
+-- Legal/administrative documents (tax, insurance, registration) — unlike
+-- maintenance items these are purely date-based with no service history,
+-- just the current expiry date the user updates on renewal.
+CREATE TABLE IF NOT EXISTS vehicle_documents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+  document_type TEXT NOT NULL CHECK (document_type IN ('tax', 'insurance', 'registration', 'other')),
+  label TEXT NOT NULL,
+  expiry_date TEXT NOT NULL,
   notes TEXT
 );
 

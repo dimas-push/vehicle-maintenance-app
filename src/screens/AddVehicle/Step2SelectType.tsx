@@ -29,7 +29,6 @@ export default function Step2SelectType({ route, navigation }: Props) {
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() =>
               navigation.navigate("Details", {
-                brandId,
                 brandName,
                 vehicleTypeId: item.id,
                 vehicleTypeName: item.name,
@@ -40,6 +39,15 @@ export default function Step2SelectType({ route, navigation }: Props) {
             <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
           </Pressable>
         )}
+        ListFooterComponent={
+          <Pressable
+            style={({ pressed }) => [styles.item, styles.otherItem, pressed && styles.itemPressed]}
+            onPress={() => navigation.navigate("CustomVehicleType", { brandName })}
+          >
+            <Text style={styles.otherItemText}>My model isn't listed</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
+          </Pressable>
+        }
       />
     </View>
   );
@@ -59,4 +67,6 @@ const styles = StyleSheet.create({
   },
   itemPressed: { backgroundColor: colors.primarySoft },
   itemText: { ...typography.body, fontWeight: "600" },
+  otherItem: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.border },
+  otherItemText: { ...typography.body, color: colors.textMuted },
 });

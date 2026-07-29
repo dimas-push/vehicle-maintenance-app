@@ -34,6 +34,15 @@ export default function Step1SelectBrand({ navigation }: Props) {
             <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
           </Pressable>
         )}
+        ListFooterComponent={
+          <Pressable
+            style={({ pressed }) => [styles.item, styles.otherItem, pressed && styles.itemPressed]}
+            onPress={() => navigation.navigate("CustomVehicleType", {})}
+          >
+            <Text style={styles.otherItemText}>My brand isn't listed</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
+          </Pressable>
+        }
       />
     </View>
   );
@@ -53,4 +62,6 @@ const styles = StyleSheet.create({
   },
   itemPressed: { backgroundColor: colors.primarySoft },
   itemText: { ...typography.body, fontWeight: "600" },
+  otherItem: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.border },
+  otherItemText: { ...typography.body, color: colors.textMuted },
 });

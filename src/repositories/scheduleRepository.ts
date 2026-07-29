@@ -102,18 +102,20 @@ export async function recordMaintenanceDone(
   maintenanceItemId: number,
   doneAtKm: number,
   doneAtDate: string,
-  notes?: string
+  notes?: string,
+  cost?: number
 ): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO maintenance_records
-       (vehicle_id, maintenance_item_id, done_at_km, done_at_date, notes)
-     VALUES (?, ?, ?, ?, ?)`,
+       (vehicle_id, maintenance_item_id, done_at_km, done_at_date, notes, cost)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     vehicleId,
     maintenanceItemId,
     doneAtKm,
     doneAtDate,
-    notes ?? null
+    notes ?? null,
+    cost ?? null
   );
   await recalculateSchedules(vehicleId);
 }

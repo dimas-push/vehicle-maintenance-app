@@ -34,6 +34,7 @@ export interface Vehicle {
   purchase_date: string | null; // ISO date
   current_km: number;
   current_km_updated_at: string; // ISO date
+  photo_uri: string | null;
   created_at: string;
 }
 
@@ -43,6 +44,18 @@ export interface MaintenanceRecord {
   maintenance_item_id: number;
   done_at_km: number;
   done_at_date: string; // ISO date
+  cost: number | null;
+  notes: string | null;
+}
+
+export type DocumentType = "tax" | "insurance" | "registration" | "other";
+
+export interface VehicleDocument {
+  id: number;
+  vehicle_id: number;
+  document_type: DocumentType;
+  label: string;
+  expiry_date: string; // ISO date
   notes: string | null;
 }
 

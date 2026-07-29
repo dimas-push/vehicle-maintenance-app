@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,21 +8,32 @@ import {
   getVehicle,
   updateCurrentKm,
   updateVehicleDetails,
+  updateVehiclePhoto,
 } from "../../repositories/vehicleRepository";
 import {
   listSchedulesForVehicle,
   recalculateSchedules,
   recordMaintenanceDone,
 } from "../../repositories/scheduleRepository";
-import type { MaintenanceSchedule, Vehicle } from "../../types/models";
+import {
+  createDocument,
+  deleteDocument,
+  listDocumentsForVehicle,
+} from "../../repositories/documentRepository";
+import type { DocumentType, MaintenanceSchedule, Vehicle, VehicleDocument } from "../../types/models";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 import { STATUS_LABEL, STATUS_STYLE } from "../../utils/scheduleStatusPresentation";
+import { DOCUMENT_TYPE_LABEL, statusFromExpiry } from "../../utils/documentStatus";
+import { getReminderThresholds } from "../../utils/reminderSettings";
 import { notifyDueSchedules } from "../../services/notifications";
+import { deleteVehiclePhoto, pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../../services/photos";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatDistance } from "../../utils/units";
 import UpdateKmModal from "./UpdateKmModal";
 import EditVehicleModal from "./EditVehicleModal";
+import MarkDoneModal from "./MarkDoneModal";
+import AddDocumentModal from "./AddDocumentModal";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VehicleDetail">;
 type ScheduleRow = MaintenanceSchedule & { item_name: string };
@@ -36,14 +47,25 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const { vehicleId } = route.params;
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
+  const [documents, setDocuments] = useState<VehicleDocument[]>([]);
+  const [daysThreshold, setDaysThreshold] = useState(14);
   const [kmModalVisible, setKmModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [documentModalVisible, setDocumentModalVisible] = useState(false);
+  const [markDoneItem, setMarkDoneItem] = useState<ScheduleRow | null>(null);
   const { unit } = useUnitPreference();
 
   const reload = useCallback(async () => {
-    const [v, s] = await Promise.all([getVehicle(vehicleId), listSchedulesForVehicle(vehicleId)]);
+    const [v, s, d, thresholds] = await Promise.all([
+      getVehicle(vehicleId),
+      listSchedulesForVehicle(vehicleId),
+      listDocumentsForVehicle(vehicleId),
+      getReminderThresholds(),
+    ]);
     setVehicle(v);
     setSchedules(s.sort((a, b) => b.status.localeCompare(a.status)));
+    setDocuments(d);
+    setDaysThreshold(thresholds.daysThreshold);
   }, [vehicleId]);
 
   useFocusEffect(
@@ -63,6 +85,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            deleteVehiclePhoto(vehicle.photo_uri);
             await deleteVehicle(vehicleId);
             navigation.goBack();
           },
@@ -74,6 +97,50 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   async function handleEditSave(nickname: string, plateNumber: string | null) {
     setEditModalVisible(false);
     await updateVehicleDetails(vehicleId, { nickname, plate_number: plateNumber });
+    await reload();
+  }
+
+  function handleChangePhoto() {
+    Alert.alert("Vehicle Photo", undefined, [
+      {
+        text: "Take Photo",
+        onPress: async () => {
+          try {
+            const uri = await takeVehiclePhoto();
+            if (uri) await applyPhoto(uri);
+          } catch (err) {
+            Alert.alert("Couldn't open camera", String(err instanceof Error ? err.message : err));
+          }
+        },
+      },
+      {
+        text: "Choose from Library",
+        onPress: async () => {
+          try {
+            const uri = await pickVehiclePhotoFromLibrary();
+            if (uri) await applyPhoto(uri);
+          } catch (err) {
+            Alert.alert("Couldn't open photo library", String(err instanceof Error ? err.message : err));
+          }
+        },
+      },
+      ...(vehicle?.photo_uri
+        ? [
+            {
+              text: "Remove Photo",
+              style: "destructive" as const,
+              onPress: () => applyPhoto(null),
+            },
+          ]
+        : []),
+      { text: "Cancel", style: "cancel" as const },
+    ]);
+  }
+
+  async function applyPhoto(uri: string | null) {
+    const previous = vehicle?.photo_uri ?? null;
+    await updateVehiclePhoto(vehicleId, uri);
+    if (previous && previous !== uri) deleteVehiclePhoto(previous);
     await reload();
   }
 
@@ -100,28 +167,39 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     await reload();
   }
 
-  function confirmMarkDone(item: ScheduleRow) {
-    if (!vehicle) return;
-    Alert.alert(
-      "Mark as done?",
-      `${item.item_name} will be logged as done today at ${formatDistance(vehicle.current_km, unit)}.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes, done",
-          onPress: async () => {
-            await recordMaintenanceDone(
-              vehicleId,
-              item.maintenance_item_id,
-              vehicle.current_km,
-              new Date().toISOString().slice(0, 10)
-            );
-            await notifyDueSchedules(vehicleId);
-            await reload();
-          },
-        },
-      ]
+  async function handleMarkDoneSubmit(cost: number | null, notes: string | null) {
+    if (!vehicle || !markDoneItem) return;
+    setMarkDoneItem(null);
+    await recordMaintenanceDone(
+      vehicleId,
+      markDoneItem.maintenance_item_id,
+      vehicle.current_km,
+      new Date().toISOString().slice(0, 10),
+      notes ?? undefined,
+      cost ?? undefined
     );
+    await notifyDueSchedules(vehicleId);
+    await reload();
+  }
+
+  async function handleAddDocument(documentType: DocumentType, label: string, expiryDate: string) {
+    setDocumentModalVisible(false);
+    await createDocument({ vehicle_id: vehicleId, document_type: documentType, label, expiry_date: expiryDate });
+    await reload();
+  }
+
+  function confirmDeleteDocument(doc: VehicleDocument) {
+    Alert.alert("Delete this reminder?", doc.label, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteDocument(doc.id);
+          await reload();
+        },
+      },
+    ]);
   }
 
   if (!vehicle) return null;
@@ -129,8 +207,21 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.nickname}>{vehicle.nickname}</Text>
-        {vehicle.plate_number && <Text style={styles.plate}>{vehicle.plate_number}</Text>}
+        <View style={styles.topRow}>
+          <Pressable onPress={handleChangePhoto}>
+            {vehicle.photo_uri ? (
+              <Image source={{ uri: vehicle.photo_uri }} style={styles.photo} />
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="camera-outline" size={22} color={colors.primary} />
+              </View>
+            )}
+          </Pressable>
+          <View style={styles.topRowText}>
+            <Text style={styles.nickname}>{vehicle.nickname}</Text>
+            {vehicle.plate_number && <Text style={styles.plate}>{vehicle.plate_number}</Text>}
+          </View>
+        </View>
 
         <View style={styles.kmRow}>
           <View>
@@ -159,7 +250,47 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         data={schedules}
         keyExtractor={(s) => String(s.id)}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={<Text style={styles.sectionTitle}>Maintenance Schedule</Text>}
+        ListHeaderComponent={
+          <>
+            <View style={styles.documentsHeader}>
+              <Text style={styles.sectionTitle}>Documents</Text>
+              <Pressable onPress={() => setDocumentModalVisible(true)} hitSlop={8}>
+                <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+              </Pressable>
+            </View>
+            {documents.length === 0 ? (
+              <Text style={styles.emptyDocsText}>
+                No tax, insurance, or registration reminders yet.
+              </Text>
+            ) : (
+              documents.map((doc) => {
+                const status = statusFromExpiry(doc.expiry_date, daysThreshold);
+                const statusStyle = STATUS_STYLE[status];
+                return (
+                  <Pressable
+                    key={doc.id}
+                    style={styles.docRow}
+                    onPress={() => confirmDeleteDocument(doc)}
+                  >
+                    <View style={styles.docRowText}>
+                      <Text style={styles.docLabel}>
+                        {doc.label} · {DOCUMENT_TYPE_LABEL[doc.document_type]}
+                      </Text>
+                      <Text style={styles.docExpiry}>Expires {formatDueDate(doc.expiry_date)}</Text>
+                    </View>
+                    <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
+                      <Text style={[styles.badgeText, { color: statusStyle.fg }]}>
+                        {STATUS_LABEL[status]}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })
+            )}
+
+            <Text style={[styles.sectionTitle, styles.scheduleTitle]}>Maintenance Schedule</Text>
+          </>
+        }
         renderItem={({ item }) => {
           const status = STATUS_STYLE[item.status];
           return (
@@ -175,7 +306,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                 {item.due_km != null && item.due_date ? " • " : ""}
                 {item.due_date ? `by ${formatDueDate(item.due_date)}` : ""}
               </Text>
-              <Pressable style={styles.doneButton} onPress={() => confirmMarkDone(item)}>
+              <Pressable style={styles.doneButton} onPress={() => setMarkDoneItem(item)}>
                 <Ionicons name="checkmark-circle-outline" size={16} color={colors.primary} />
                 <Text style={styles.doneButtonText}>Mark as Done</Text>
               </Pressable>
@@ -199,6 +330,20 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         onCancel={() => setEditModalVisible(false)}
         onSubmit={handleEditSave}
       />
+
+      <MarkDoneModal
+        visible={markDoneItem != null}
+        itemName={markDoneItem?.item_name ?? ""}
+        odometerLabel={formatDistance(vehicle.current_km, unit)}
+        onCancel={() => setMarkDoneItem(null)}
+        onSubmit={handleMarkDoneSubmit}
+      />
+
+      <AddDocumentModal
+        visible={documentModalVisible}
+        onCancel={() => setDocumentModalVisible(false)}
+        onSubmit={handleAddDocument}
+      />
     </View>
   );
 }
@@ -212,6 +357,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  topRow: { flexDirection: "row", alignItems: "center" },
+  photo: { width: 56, height: 56, borderRadius: radius.md, marginRight: spacing.sm },
+  photoPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.sm,
+  },
+  topRowText: { flex: 1 },
   nickname: { ...typography.title },
   plate: { ...typography.caption, marginTop: 2 },
   kmRow: {
@@ -242,7 +399,27 @@ const styles = StyleSheet.create({
   },
   kmButtonText: { color: colors.primaryDark, fontWeight: "700", fontSize: 13 },
   listContent: { padding: spacing.md, paddingBottom: spacing.xl },
-  sectionTitle: { ...typography.label, marginBottom: spacing.sm },
+  sectionTitle: { ...typography.label },
+  scheduleTitle: { marginTop: spacing.md, marginBottom: spacing.sm },
+  documentsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  emptyDocsText: { ...typography.caption, marginBottom: spacing.sm },
+  docRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+    marginBottom: spacing.xs,
+    ...shadow.card,
+  },
+  docRowText: { flex: 1 },
+  docLabel: { ...typography.body, fontWeight: "700", fontSize: 14 },
+  docExpiry: { ...typography.caption, marginTop: 2 },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
