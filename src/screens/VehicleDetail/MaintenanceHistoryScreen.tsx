@@ -11,7 +11,7 @@ import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatDistance } from "../../utils/units";
 
 type Props = NativeStackScreenProps<RootStackParamList, "MaintenanceHistory">;
-type RecordRow = MaintenanceRecord & { item_name: string };
+type RecordRow = MaintenanceRecord & { item_name: string; shop_name: string | null };
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
@@ -70,6 +70,7 @@ export default function MaintenanceHistoryScreen({ route }: Props) {
               {item.cost != null
                 ? ` • ${item.cost.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : ""}
+              {item.shop_name ? ` • ${item.shop_name}` : ""}
             </Text>
             {item.notes && <Text style={styles.notes}>{item.notes}</Text>}
           </View>

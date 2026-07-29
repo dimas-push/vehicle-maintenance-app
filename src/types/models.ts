@@ -59,6 +59,25 @@ export interface MaintenanceRecord {
   done_at_date: string; // ISO date
   cost: number | null;
   photo_uri: string | null;
+  shop_id: number | null;
+  notes: string | null;
+}
+
+export interface ServiceShop {
+  id: number;
+  name: string;
+  phone: string | null;
+  address: string | null;
+  notes: string | null;
+}
+
+export interface VehicleLoan {
+  id: number;
+  vehicle_id: number;
+  lender: string | null;
+  monthly_payment: number;
+  start_date: string; // ISO date
+  term_months: number;
   notes: string | null;
 }
 
@@ -108,6 +127,7 @@ export interface MaintenanceSchedule {
   due_date: string | null; // ISO date
   status: ScheduleStatus;
   last_calculated_at: string;
+  snoozed_until: string | null; // ISO date
 }
 
 export interface Reminder {

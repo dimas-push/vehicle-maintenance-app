@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import type { CompositeScreenProps } from "@react-navigation/native";
+import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
 import { type DistanceUnit, type VolumeUnit, displayToKm, kmToDisplay } from "../utils/units";
@@ -8,7 +11,14 @@ import { listVehicles } from "../repositories/vehicleRepository";
 import { recalculateSchedules } from "../repositories/scheduleRepository";
 import { notifyDueSchedules } from "../services/notifications";
 import { exportBackup, importBackup } from "../services/backup";
+import type { RootStackParamList } from "../navigation/RootNavigator";
+import type { VehicleTabsParamList } from "../navigation/VehicleTabs";
 import { colors, radius, shadow, spacing, typography } from "../theme";
+
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<VehicleTabsParamList, "Settings">,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 const OPTIONS: { value: DistanceUnit; label: string; hint: string }[] = [
   { value: "km", label: "Kilometers", hint: "Used in most of the world" },
@@ -20,7 +30,7 @@ const VOLUME_OPTIONS: { value: VolumeUnit; label: string; hint: string }[] = [
   { value: "gallons", label: "Gallons", hint: "US gallons" },
 ];
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }: Props) {
   const { unit, setUnit, volumeUnit, setVolumeUnit } = useUnitPreference();
   const [kmInput, setKmInput] = useState("");
   const [daysInput, setDaysInput] = useState("");
@@ -189,6 +199,15 @@ export default function SettingsScreen() {
           </Text>
         </Pressable>
       </View>
+
+      <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Service Shops</Text>
+      <Pressable style={styles.option} onPress={() => navigation.navigate("ShopList")}>
+        <View>
+          <Text style={styles.optionLabel}>Manage Service Shops</Text>
+          <Text style={styles.optionHint}>Saved mechanics and shops for service records</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
+      </Pressable>
     </ScrollView>
   );
 }

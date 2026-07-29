@@ -48,6 +48,16 @@ CREATE TABLE IF NOT EXISTS vehicles (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Saved service shops/mechanics, global (not per-vehicle) — a maintenance
+-- record can optionally reference which shop did the work.
+CREATE TABLE IF NOT EXISTS service_shops (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  notes TEXT
+);
+
 CREATE TABLE IF NOT EXISTS maintenance_records (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
@@ -56,6 +66,22 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
   done_at_date TEXT NOT NULL,
   cost REAL,
   photo_uri TEXT,
+  shop_id INTEGER REFERENCES service_shops(id) ON DELETE SET NULL,
+  notes TEXT
+);
+
+-- At most one active loan per vehicle in practice (enforced in the app
+-- layer, not the schema). Remaining balance is estimated as
+-- monthly_payment × months remaining — a simplification that ignores
+-- interest amortization, not a substitute for the lender's real payoff
+-- statement.
+CREATE TABLE IF NOT EXISTS vehicle_loans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+  lender TEXT,
+  monthly_payment REAL NOT NULL,
+  start_date TEXT NOT NULL,
+  term_months INTEGER NOT NULL,
   notes TEXT
 );
 
@@ -100,6 +126,11 @@ CREATE TABLE IF NOT EXISTS fuel_logs (
   notes TEXT
 );
 
+-- snoozed_until: while set to a future date, notifyDueSchedules skips this
+-- row even if status is due_soon/overdue. Not touched by recalculateSchedules'
+-- UPSERT (only due_km/due_date/status/last_calculated_at are), so it survives
+-- schedule recalculation and is cleared explicitly via snoozeSchedule(null)
+-- or once the date passes.
 CREATE TABLE IF NOT EXISTS maintenance_schedules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
@@ -108,6 +139,7 @@ CREATE TABLE IF NOT EXISTS maintenance_schedules (
   due_date TEXT,
   status TEXT NOT NULL CHECK (status IN ('ontrack', 'due_soon', 'overdue')),
   last_calculated_at TEXT NOT NULL,
+  snoozed_until TEXT,
   UNIQUE (vehicle_id, maintenance_item_id)
 );
 

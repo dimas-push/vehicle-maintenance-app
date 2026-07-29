@@ -15,12 +15,14 @@ import {
 } from "../repositories/scheduleRepository";
 import { createDocument, listDocumentsForVehicle } from "../repositories/documentRepository";
 import { createFuelLog, listFuelLogs } from "../repositories/fuelRepository";
+import { findOrCreateShopByName } from "../repositories/shopRepository";
+import { getLoanForVehicle, setLoanForVehicle } from "../repositories/loanRepository";
 import type { DocumentType } from "../types/models";
 import { notifyDueSchedules } from "./notifications";
 
-// Bumped from 2 to 3 to add VIN and fuel logs — older backups still import
-// fine since the new fields are optional on read.
-const BACKUP_FORMAT_VERSION = 3;
+// Bumped from 3 to 4 to add loans and shop names on records — older backups
+// still import fine since the new fields are optional on read.
+const BACKUP_FORMAT_VERSION = 4;
 
 interface BackupRecord {
   item_name: string;
@@ -28,6 +30,14 @@ interface BackupRecord {
   done_at_date: string;
   cost: number | null;
   notes: string | null;
+  shop_name?: string | null;
+}
+
+interface BackupLoan {
+  lender: string | null;
+  monthly_payment: number;
+  start_date: string;
+  term_months: number;
 }
 
 interface BackupDocument {
@@ -57,6 +67,7 @@ interface BackupVehicle {
   records: BackupRecord[];
   documents?: BackupDocument[];
   fuelLogs?: BackupFuelLog[];
+  loan?: BackupLoan | null;
 }
 
 interface BackupFile {
@@ -79,6 +90,7 @@ async function buildBackupData(): Promise<BackupFile> {
     const records = await listMaintenanceRecords(vehicle.id);
     const documents = await listDocumentsForVehicle(vehicle.id);
     const fuelLogs = await listFuelLogs(vehicle.id);
+    const loan = await getLoanForVehicle(vehicle.id);
 
     backupVehicles.push({
       nickname: vehicle.nickname,
@@ -94,6 +106,7 @@ async function buildBackupData(): Promise<BackupFile> {
         done_at_date: r.done_at_date,
         cost: r.cost,
         notes: r.notes,
+        shop_name: r.shop_name,
       })),
       documents: documents.map((d) => ({
         document_type: d.document_type,
@@ -109,6 +122,14 @@ async function buildBackupData(): Promise<BackupFile> {
         full_tank: f.full_tank === 1,
         notes: f.notes,
       })),
+      loan: loan
+        ? {
+            lender: loan.lender,
+            monthly_payment: loan.monthly_payment,
+            start_date: loan.start_date,
+            term_months: loan.term_months,
+          }
+        : null,
     });
   }
 
@@ -200,6 +221,7 @@ export async function importBackup(): Promise<ImportSummary | null> {
     for (const record of backupVehicle.records) {
       const item = await findMaintenanceItemByName(record.item_name);
       if (!item) continue;
+      const shop = record.shop_name ? await findOrCreateShopByName(record.shop_name) : null;
       await recordMaintenanceDone({
         vehicleId: vehicle.id,
         maintenanceItemId: item.id,
@@ -207,6 +229,7 @@ export async function importBackup(): Promise<ImportSummary | null> {
         doneAtDate: record.done_at_date,
         notes: record.notes,
         cost: record.cost,
+        shopId: shop?.id ?? null,
       });
     }
 
@@ -229,6 +252,15 @@ export async function importBackup(): Promise<ImportSummary | null> {
         cost: log.cost,
         full_tank: log.full_tank,
         notes: log.notes,
+      });
+    }
+
+    if (backupVehicle.loan) {
+      await setLoanForVehicle(vehicle.id, {
+        lender: backupVehicle.loan.lender,
+        monthly_payment: backupVehicle.loan.monthly_payment,
+        start_date: backupVehicle.loan.start_date,
+        term_months: backupVehicle.loan.term_months,
       });
     }
 

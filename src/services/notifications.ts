@@ -52,7 +52,8 @@ export async function notifyDueSchedules(vehicleId: number): Promise<void> {
        FROM maintenance_schedules ms
        JOIN maintenance_items mi ON mi.id = ms.maintenance_item_id
        JOIN vehicles v ON v.id = ms.vehicle_id
-      WHERE ms.vehicle_id = ? AND ms.status IN ('due_soon', 'overdue')`,
+      WHERE ms.vehicle_id = ? AND ms.status IN ('due_soon', 'overdue')
+        AND (ms.snoozed_until IS NULL OR ms.snoozed_until <= date('now'))`,
     vehicleId
   );
 

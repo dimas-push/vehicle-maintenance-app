@@ -84,13 +84,14 @@ export async function recalculateSchedules(vehicleId: number): Promise<void> {
 }
 
 export async function listMaintenanceRecords(vehicleId: number): Promise<
-  (MaintenanceRecord & { item_name: string })[]
+  (MaintenanceRecord & { item_name: string; shop_name: string | null })[]
 > {
   const db = await getDb();
-  return db.getAllAsync<MaintenanceRecord & { item_name: string }>(
-    `SELECT mr.*, mi.name AS item_name
+  return db.getAllAsync<MaintenanceRecord & { item_name: string; shop_name: string | null }>(
+    `SELECT mr.*, mi.name AS item_name, ss.name AS shop_name
        FROM maintenance_records mr
        JOIN maintenance_items mi ON mi.id = mr.maintenance_item_id
+       LEFT JOIN service_shops ss ON ss.id = mr.shop_id
       WHERE mr.vehicle_id = ?
       ORDER BY mr.done_at_date DESC, mr.id DESC`,
     vehicleId
@@ -105,21 +106,29 @@ export interface RecordMaintenanceDoneInput {
   notes?: string | null;
   cost?: number | null;
   photoUri?: string | null;
+  shopId?: number | null;
 }
 
 export async function recordMaintenanceDone(input: RecordMaintenanceDoneInput): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO maintenance_records
-       (vehicle_id, maintenance_item_id, done_at_km, done_at_date, notes, cost, photo_uri)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (vehicle_id, maintenance_item_id, done_at_km, done_at_date, notes, cost, photo_uri, shop_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     input.vehicleId,
     input.maintenanceItemId,
     input.doneAtKm,
     input.doneAtDate,
     input.notes ?? null,
     input.cost ?? null,
-    input.photoUri ?? null
+    input.photoUri ?? null,
+    input.shopId ?? null
   );
   await recalculateSchedules(input.vehicleId);
+}
+
+/** Suppresses notifications for this schedule until the given date (or clears the snooze if null). */
+export async function snoozeSchedule(scheduleId: number, untilDate: string | null): Promise<void> {
+  const db = await getDb();
+  await db.runAsync("UPDATE maintenance_schedules SET snoozed_until = ? WHERE id = ?", untilDate, scheduleId);
 }

@@ -22,7 +22,16 @@ import {
   listDocumentsForVehicle,
 } from "../../repositories/documentRepository";
 import { recordOdometerReading } from "../../repositories/odometerRepository";
-import type { DocumentType, MaintenanceSchedule, VehicleDocument } from "../../types/models";
+import { getLoanForVehicle, setLoanForVehicle, summarizeLoan } from "../../repositories/loanRepository";
+import { listShops } from "../../repositories/shopRepository";
+import { snoozeSchedule } from "../../repositories/scheduleRepository";
+import type {
+  DocumentType,
+  MaintenanceSchedule,
+  ServiceShop,
+  VehicleDocument,
+  VehicleLoan,
+} from "../../types/models";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 import { STATUS_LABEL, STATUS_STYLE } from "../../utils/scheduleStatusPresentation";
@@ -38,6 +47,7 @@ import UpdateKmModal from "./UpdateKmModal";
 import EditVehicleModal from "./EditVehicleModal";
 import MarkDoneModal from "./MarkDoneModal";
 import AddDocumentModal from "./AddDocumentModal";
+import AddLoanModal from "./AddLoanModal";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VehicleDetail">;
 type ScheduleRow = MaintenanceSchedule & { item_name: string };
@@ -57,19 +67,26 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [documentModalVisible, setDocumentModalVisible] = useState(false);
   const [markDoneItem, setMarkDoneItem] = useState<ScheduleRow | null>(null);
+  const [loan, setLoan] = useState<VehicleLoan | null>(null);
+  const [loanModalVisible, setLoanModalVisible] = useState(false);
+  const [shops, setShops] = useState<ServiceShop[]>([]);
   const { unit, volumeUnit } = useUnitPreference();
 
   const reload = useCallback(async () => {
-    const [v, s, d, thresholds] = await Promise.all([
+    const [v, s, d, thresholds, l, sh] = await Promise.all([
       getVehicle(vehicleId),
       listSchedulesForVehicle(vehicleId),
       listDocumentsForVehicle(vehicleId),
       getReminderThresholds(),
+      getLoanForVehicle(vehicleId),
+      listShops(),
     ]);
     setVehicle(v);
     setSchedules(s.sort((a, b) => b.status.localeCompare(a.status)));
     setDocuments(d);
     setDaysThreshold(thresholds.daysThreshold);
+    setLoan(l);
+    setShops(sh);
   }, [vehicleId]);
 
   useFocusEffect(
@@ -201,7 +218,12 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     await reload();
   }
 
-  async function handleMarkDoneSubmit(cost: number | null, notes: string | null, photoUri: string | null) {
+  async function handleMarkDoneSubmit(
+    cost: number | null,
+    notes: string | null,
+    photoUri: string | null,
+    shopId: number | null
+  ) {
     if (!vehicle || !markDoneItem) return;
     setMarkDoneItem(null);
     await recordMaintenanceDone({
@@ -212,8 +234,43 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
       notes,
       cost,
       photoUri,
+      shopId,
     });
     await notifyDueSchedules(vehicleId);
+    await reload();
+  }
+
+  async function handleSaveLoan(
+    lender: string | null,
+    monthlyPayment: number,
+    startDate: string,
+    termMonths: number
+  ) {
+    setLoanModalVisible(false);
+    await setLoanForVehicle(vehicleId, { lender, monthly_payment: monthlyPayment, start_date: startDate, term_months: termMonths });
+    await reload();
+  }
+
+  function handleSnooze(schedule: ScheduleRow) {
+    Alert.alert("Snooze reminder", `${schedule.item_name} — hide from notifications for how long?`, [
+      { text: "3 days", onPress: () => applySnooze(schedule.id, 3) },
+      { text: "1 week", onPress: () => applySnooze(schedule.id, 7) },
+      { text: "2 weeks", onPress: () => applySnooze(schedule.id, 14) },
+      ...(schedule.snoozed_until
+        ? [{ text: "Clear snooze", onPress: () => applySnooze(schedule.id, null) }]
+        : []),
+      { text: "Cancel", style: "cancel" as const },
+    ]);
+  }
+
+  async function applySnooze(scheduleId: number, days: number | null) {
+    if (days == null) {
+      await snoozeSchedule(scheduleId, null);
+    } else {
+      const until = new Date();
+      until.setDate(until.getDate() + days);
+      await snoozeSchedule(scheduleId, until.toISOString().slice(0, 10));
+    }
     await reload();
   }
 
@@ -248,7 +305,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
               <Image source={{ uri: vehicle.photo_uri }} style={styles.photo} />
             ) : (
               <View style={styles.photoPlaceholder}>
-                <Ionicons name="camera-outline" size={22} color={colors.primary} />
+                <MaterialCommunityIcons name={vehicleClassIcon(vehicle.vehicle_class)} size={26} color={colors.primary} />
               </View>
             )}
           </Pressable>
@@ -333,11 +390,43 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
               })
             )}
 
+            <View style={styles.documentsHeader}>
+              <Text style={[styles.sectionTitle, styles.scheduleTitle]}>Loan</Text>
+              {!loan && (
+                <Pressable onPress={() => setLoanModalVisible(true)} hitSlop={8}>
+                  <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                </Pressable>
+              )}
+            </View>
+            {loan ? (
+              (() => {
+                const summary = summarizeLoan(loan);
+                return (
+                  <Pressable style={styles.loanCard} onPress={() => setLoanModalVisible(true)}>
+                    <View style={styles.docRowText}>
+                      <Text style={styles.docLabel}>
+                        {loan.lender || "Loan"} · {loan.monthly_payment.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
+                      </Text>
+                      <Text style={styles.docExpiry}>
+                        {summary.isPaidOff
+                          ? "Paid off"
+                          : `${summary.monthsRemaining} month(s) left • payoff ${formatDueDate(summary.payoffDate)}`}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+                  </Pressable>
+                );
+              })()
+            ) : (
+              <Text style={styles.emptyDocsText}>No loan on file for this vehicle.</Text>
+            )}
+
             <Text style={[styles.sectionTitle, styles.scheduleTitle]}>Maintenance Schedule</Text>
           </>
         }
         renderItem={({ item }) => {
           const status = STATUS_STYLE[item.status];
+          const isSnoozed = item.snoozed_until != null && item.snoozed_until > new Date().toISOString().slice(0, 10);
           return (
             <View style={styles.card}>
               <View style={styles.cardTop}>
@@ -351,10 +440,23 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                 {item.due_km != null && item.due_date ? " • " : ""}
                 {item.due_date ? `by ${formatDueDate(item.due_date)}` : ""}
               </Text>
-              <Pressable style={styles.doneButton} onPress={() => setMarkDoneItem(item)}>
-                <Ionicons name="checkmark-circle-outline" size={16} color={colors.primary} />
-                <Text style={styles.doneButtonText}>Mark as Done</Text>
-              </Pressable>
+              {isSnoozed && (
+                <Text style={styles.snoozedText}>
+                  Snoozed until {formatDueDate(item.snoozed_until)}
+                </Text>
+              )}
+              <View style={styles.cardActions}>
+                <Pressable style={styles.doneButton} onPress={() => setMarkDoneItem(item)}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color={colors.primary} />
+                  <Text style={styles.doneButtonText}>Mark as Done</Text>
+                </Pressable>
+                {(item.status === "due_soon" || item.status === "overdue") && (
+                  <Pressable style={styles.doneButton} onPress={() => handleSnooze(item)}>
+                    <Ionicons name="notifications-off-outline" size={16} color={colors.textMuted} />
+                    <Text style={styles.snoozeButtonText}>Snooze</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
           );
         }}
@@ -381,6 +483,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         visible={markDoneItem != null}
         itemName={markDoneItem?.item_name ?? ""}
         odometerLabel={formatDistance(vehicle.current_km, unit)}
+        shops={shops}
         onCancel={() => setMarkDoneItem(null)}
         onSubmit={handleMarkDoneSubmit}
       />
@@ -389,6 +492,13 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         visible={documentModalVisible}
         onCancel={() => setDocumentModalVisible(false)}
         onSubmit={handleAddDocument}
+      />
+
+      <AddLoanModal
+        visible={loanModalVisible}
+        existing={loan}
+        onCancel={() => setLoanModalVisible(false)}
+        onSubmit={handleSaveLoan}
       />
     </View>
   );
@@ -484,8 +594,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     alignSelf: "flex-start",
-    marginTop: spacing.sm,
     paddingVertical: 4,
   },
   doneButtonText: { color: colors.primary, fontWeight: "700", fontSize: 13 },
+  cardActions: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
+  snoozeButtonText: { color: colors.textMuted, fontWeight: "700", fontSize: 13 },
+  snoozedText: { ...typography.caption, color: colors.warning, marginTop: spacing.xs, fontWeight: "600" },
+  loanCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+    marginBottom: spacing.xs,
+    ...shadow.card,
+  },
 });

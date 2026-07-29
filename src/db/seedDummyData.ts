@@ -1,8 +1,10 @@
 import { listBrandsByClass, listVehicleTypesByBrand } from "../repositories/catalogRepository";
 import { createVehicle, listVehicles } from "../repositories/vehicleRepository";
-import { recalculateSchedules, recordMaintenanceDone } from "../repositories/scheduleRepository";
+import { recalculateSchedules, recordMaintenanceDone, snoozeSchedule } from "../repositories/scheduleRepository";
 import { createDocument } from "../repositories/documentRepository";
 import { createFuelLog } from "../repositories/fuelRepository";
+import { createShop } from "../repositories/shopRepository";
+import { setLoanForVehicle } from "../repositories/loanRepository";
 import { notifyDueSchedules } from "../services/notifications";
 import { getDb } from "./index";
 
@@ -59,6 +61,12 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
   const cvtBeltId = await findItemId("CVT drive belt");
   const coolantId = await findItemId("Coolant");
 
+  const quickFix = await createShop({
+    name: "QuickFix Garage",
+    phone: "+1-555-0142",
+    address: "123 Main St",
+  });
+
   // Dad's Bike: engine oil overdue -> last done 4 months ago, well past the interval
   const dadsBike = await createVehicle({
     vehicle_type_id: beat.id,
@@ -84,6 +92,7 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
       doneAtDate: daysAgo(20),
       notes: "New NGK plug",
       cost: 6,
+      shopId: quickFix.id,
     });
   }
   await createDocument({
@@ -206,11 +215,28 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     cost: 50,
     full_tank: true,
   });
+  await setLoanForVehicle(familyCar.id, {
+    lender: "Toyota Financial",
+    monthly_payment: 410,
+    start_date: daysAgo(365),
+    term_months: 60,
+  });
 
   await recalculateSchedules(dadsBike.id);
   await recalculateSchedules(momsScooter.id);
   await recalculateSchedules(alexsNmax.id);
   await recalculateSchedules(familyCar.id);
+
+  // Demonstrate snoozing: Alex's NMAX CVT belt is due_soon, hide its
+  // notification for a week without actually doing the service.
+  if (cvtBeltId) {
+    const belt = await db.getFirstAsync<{ id: number }>(
+      "SELECT id FROM maintenance_schedules WHERE vehicle_id = ? AND maintenance_item_id = ?",
+      alexsNmax.id,
+      cvtBeltId
+    );
+    if (belt) await snoozeSchedule(belt.id, daysFromNow(7));
+  }
 
   await notifyDueSchedules(dadsBike.id);
   await notifyDueSchedules(momsScooter.id);

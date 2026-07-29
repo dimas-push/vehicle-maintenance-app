@@ -5,15 +5,17 @@ import { seedCatalog } from "./seed";
 // Bump this whenever the schema or catalog seed data changes shape —
 // existing installs get their local database rebuilt from scratch instead
 // of silently keeping stale data (e.g. from before English translations).
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 const TABLES = [
   "reminders",
   "maintenance_schedules",
   "vehicle_documents",
+  "vehicle_loans",
   "fuel_logs",
   "odometer_readings",
   "maintenance_records",
+  "service_shops",
   "vehicles",
   "maintenance_intervals",
   "maintenance_items",
