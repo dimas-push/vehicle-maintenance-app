@@ -7,7 +7,7 @@ import {
   findVehicleTypeByNames,
   getVehicleTypeWithBrandName,
 } from "../repositories/catalogRepository";
-import { createVehicle, listVehicles } from "../repositories/vehicleRepository";
+import { createVehicle, listVehicles, updateVehicleDetails } from "../repositories/vehicleRepository";
 import {
   listMaintenanceRecords,
   recalculateSchedules,
@@ -17,12 +17,14 @@ import { createDocument, listDocumentsForVehicle } from "../repositories/documen
 import { createFuelLog, listFuelLogs } from "../repositories/fuelRepository";
 import { findOrCreateShopByName } from "../repositories/shopRepository";
 import { getLoanForVehicle, setLoanForVehicle } from "../repositories/loanRepository";
-import type { DocumentType } from "../types/models";
+import { getOwnerProfile, isOwnerProfileEmpty, setOwnerProfile, type OwnerProfile } from "../utils/ownerProfile";
+import type { DocumentType, FuelType, Transmission } from "../types/models";
 import { notifyDueSchedules } from "./notifications";
 
-// Bumped from 3 to 4 to add loans and shop names on records — older backups
-// still import fine since the new fields are optional on read.
-const BACKUP_FORMAT_VERSION = 4;
+// Bumped from 4 to 5 to add vehicle spec fields (year/color/engine/
+// transmission/fuel type) and the owner profile — older backups still
+// import fine since all the new fields are optional on read.
+const BACKUP_FORMAT_VERSION = 5;
 
 interface BackupRecord {
   item_name: string;
@@ -68,12 +70,18 @@ interface BackupVehicle {
   documents?: BackupDocument[];
   fuelLogs?: BackupFuelLog[];
   loan?: BackupLoan | null;
+  year?: number | null;
+  color?: string | null;
+  engine_size?: string | null;
+  transmission?: Transmission | null;
+  fuel_type?: FuelType | null;
 }
 
 interface BackupFile {
   formatVersion: number;
   exportedAt: string;
   vehicles: BackupVehicle[];
+  ownerProfile?: OwnerProfile | null;
 }
 
 async function buildBackupData(): Promise<BackupFile> {
@@ -130,13 +138,21 @@ async function buildBackupData(): Promise<BackupFile> {
             term_months: loan.term_months,
           }
         : null,
+      year: vehicle.year,
+      color: vehicle.color,
+      engine_size: vehicle.engine_size,
+      transmission: vehicle.transmission,
+      fuel_type: vehicle.fuel_type,
     });
   }
+
+  const ownerProfile = await getOwnerProfile();
 
   return {
     formatVersion: BACKUP_FORMAT_VERSION,
     exportedAt: new Date().toISOString(),
     vehicles: backupVehicles,
+    ownerProfile: isOwnerProfileEmpty(ownerProfile) ? null : ownerProfile,
   };
 }
 
@@ -218,6 +234,17 @@ export async function importBackup(): Promise<ImportSummary | null> {
       current_km: backupVehicle.current_km,
     });
 
+    await updateVehicleDetails(vehicle.id, {
+      nickname: backupVehicle.nickname,
+      plate_number: backupVehicle.plate_number,
+      vin: backupVehicle.vin ?? null,
+      year: backupVehicle.year ?? null,
+      color: backupVehicle.color ?? null,
+      engine_size: backupVehicle.engine_size ?? null,
+      transmission: backupVehicle.transmission ?? null,
+      fuel_type: backupVehicle.fuel_type ?? null,
+    });
+
     for (const record of backupVehicle.records) {
       const item = await findMaintenanceItemByName(record.item_name);
       if (!item) continue;
@@ -267,6 +294,10 @@ export async function importBackup(): Promise<ImportSummary | null> {
     await recalculateSchedules(vehicle.id);
     await notifyDueSchedules(vehicle.id);
     summary.vehiclesImported += 1;
+  }
+
+  if (data.ownerProfile) {
+    await setOwnerProfile(data.ownerProfile);
   }
 
   return summary;

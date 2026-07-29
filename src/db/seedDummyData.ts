@@ -1,5 +1,5 @@
 import { listBrandsByClass, listVehicleTypesByBrand } from "../repositories/catalogRepository";
-import { createVehicle, listVehicles } from "../repositories/vehicleRepository";
+import { createVehicle, listVehicles, updateVehicleDetails } from "../repositories/vehicleRepository";
 import { recalculateSchedules, recordMaintenanceDone, snoozeSchedule } from "../repositories/scheduleRepository";
 import { createDocument } from "../repositories/documentRepository";
 import { createFuelLog } from "../repositories/fuelRepository";
@@ -75,6 +75,15 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     current_km: 15230,
     purchase_date: daysAgo(900),
   });
+  await updateVehicleDetails(dadsBike.id, {
+    nickname: "Dad's Bike",
+    plate_number: "ABC-1234",
+    year: 2021,
+    color: "Red",
+    engine_size: "110cc",
+    transmission: "automatic",
+    fuel_type: "gasoline",
+  });
   if (engineOilId) {
     await recordMaintenanceDone({
       vehicleId: dadsBike.id,
@@ -126,6 +135,15 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     current_km: 8500,
     purchase_date: daysAgo(400),
   });
+  await updateVehicleDetails(momsScooter.id, {
+    nickname: "Mom's Scooter",
+    plate_number: "XYZ-5678",
+    year: 2022,
+    color: "White",
+    engine_size: "125cc",
+    transmission: "automatic",
+    fuel_type: "gasoline",
+  });
   if (engineOilId) {
     await recordMaintenanceDone({
       vehicleId: momsScooter.id,
@@ -149,6 +167,15 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     plate_number: "DEF-9012",
     current_km: 23800,
     purchase_date: daysAgo(700),
+  });
+  await updateVehicleDetails(alexsNmax.id, {
+    nickname: "Alex's NMAX",
+    plate_number: "DEF-9012",
+    year: 2020,
+    color: "Black",
+    engine_size: "155cc",
+    transmission: "cvt",
+    fuel_type: "gasoline",
   });
   if (cvtBeltId) {
     await recordMaintenanceDone({
@@ -175,6 +202,16 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     vin: "4T1BF1FK5CU123456",
     current_km: 62000,
     purchase_date: daysAgo(1200),
+  });
+  await updateVehicleDetails(familyCar.id, {
+    nickname: "Family Car",
+    plate_number: "XYZ-7890",
+    vin: "4T1BF1FK5CU123456",
+    year: 2019,
+    color: "Silver",
+    engine_size: "2.5L",
+    transmission: "automatic",
+    fuel_type: "gasoline",
   });
   if (engineOilId) {
     await recordMaintenanceDone({

@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS vehicles (
   current_km INTEGER NOT NULL DEFAULT 0,
   current_km_updated_at TEXT NOT NULL,
   photo_uri TEXT,
+  year INTEGER,
+  color TEXT,
+  engine_size TEXT,
+  transmission TEXT CHECK (transmission IN ('manual', 'automatic', 'cvt', 'dct', 'other')),
+  fuel_type TEXT CHECK (fuel_type IN ('gasoline', 'diesel', 'electric', 'hybrid', 'other')),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

@@ -1,5 +1,5 @@
 import { getDb } from "../db";
-import type { Vehicle, VehicleClass } from "../types/models";
+import type { FuelType, Transmission, Vehicle, VehicleClass } from "../types/models";
 
 export interface NewVehicleInput {
   vehicle_type_id: number;
@@ -63,6 +63,11 @@ export interface VehicleDetailsInput {
   nickname: string;
   plate_number?: string | null;
   vin?: string | null;
+  year?: number | null;
+  color?: string | null;
+  engine_size?: string | null;
+  transmission?: Transmission | null;
+  fuel_type?: FuelType | null;
 }
 
 export async function updateVehicleDetails(
@@ -71,10 +76,18 @@ export async function updateVehicleDetails(
 ): Promise<void> {
   const db = await getDb();
   await db.runAsync(
-    "UPDATE vehicles SET nickname = ?, plate_number = ?, vin = ? WHERE id = ?",
+    `UPDATE vehicles
+        SET nickname = ?, plate_number = ?, vin = ?, year = ?, color = ?,
+            engine_size = ?, transmission = ?, fuel_type = ?
+      WHERE id = ?`,
     input.nickname,
     input.plate_number ?? null,
     input.vin ?? null,
+    input.year ?? null,
+    input.color ?? null,
+    input.engine_size ?? null,
+    input.transmission ?? null,
+    input.fuel_type ?? null,
     vehicleId
   );
 }

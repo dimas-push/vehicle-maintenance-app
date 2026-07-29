@@ -9,6 +9,8 @@ import { listFuelLogs } from "../repositories/fuelRepository";
 import { listDocumentsForVehicle } from "../repositories/documentRepository";
 import { formatDistance, formatVolume, type DistanceUnit, type VolumeUnit } from "../utils/units";
 import { DOCUMENT_TYPE_LABEL } from "../utils/documentStatus";
+import { formatVehicleSpecs } from "../utils/vehicleSpecs";
+import { getOwnerProfile } from "../utils/ownerProfile";
 
 function csvEscape(value: string | number | null): string {
   const s = value == null ? "" : String(value);
@@ -66,12 +68,14 @@ export async function exportServiceReportPdf(
   const vehicle = await getVehicle(vehicleId);
   if (!vehicle) throw new Error("Vehicle not found");
 
-  const [typeInfo, records, fuelLogs, documents] = await Promise.all([
+  const [typeInfo, records, fuelLogs, documents, ownerProfile] = await Promise.all([
     getVehicleTypeWithBrandName(vehicle.vehicle_type_id),
     listMaintenanceRecords(vehicleId),
     listFuelLogs(vehicleId),
     listDocumentsForVehicle(vehicleId),
+    getOwnerProfile(),
   ]);
+  const specsLine = formatVehicleSpecs(vehicle);
 
   const recordRows = records
     .map(
@@ -130,8 +134,10 @@ export async function exportServiceReportPdf(
           ${vehicle.plate_number ? ` • ${vehicle.plate_number}` : ""}
           ${vehicle.vin ? ` • VIN ${vehicle.vin}` : ""}
         </div>
+        ${specsLine ? `<div class="subtitle">${specsLine}</div>` : ""}
         <div class="subtitle">Current odometer: ${formatDistance(vehicle.current_km, unit)}</div>
         <div class="subtitle">Report generated ${new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}</div>
+        ${ownerProfile.name ? `<div class="subtitle">Prepared by ${ownerProfile.name}</div>` : ""}
 
         <h2>Service History</h2>
         ${records.length === 0 ? '<p class="empty">No service records.</p>' : `

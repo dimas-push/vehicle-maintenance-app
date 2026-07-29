@@ -44,8 +44,9 @@ import { showErrorAlert } from "../../utils/errorAlert";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatDistance } from "../../utils/units";
 import { vehicleClassIcon } from "../../utils/vehicleIcon";
+import { formatVehicleSpecs } from "../../utils/vehicleSpecs";
 import UpdateKmModal from "./UpdateKmModal";
-import EditVehicleModal from "./EditVehicleModal";
+import EditVehicleModal, { type EditVehicleSubmitValues } from "./EditVehicleModal";
 import MarkDoneModal from "./MarkDoneModal";
 import AddDocumentModal from "./AddDocumentModal";
 import AddLoanModal from "./AddLoanModal";
@@ -120,10 +121,19 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  async function handleEditSave(nickname: string, plateNumber: string | null, vin: string | null) {
+  async function handleEditSave(values: EditVehicleSubmitValues) {
     setEditModalVisible(false);
     try {
-      await updateVehicleDetails(vehicleId, { nickname, plate_number: plateNumber, vin });
+      await updateVehicleDetails(vehicleId, {
+        nickname: values.nickname,
+        plate_number: values.plateNumber,
+        vin: values.vin,
+        year: values.year,
+        color: values.color,
+        engine_size: values.engineSize,
+        transmission: values.transmission,
+        fuel_type: values.fuelType,
+      });
       await reload();
     } catch (err) {
       showErrorAlert("Couldn't save changes", err);
@@ -348,6 +358,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   }
 
   if (!vehicle) return null;
+  const specsLine = formatVehicleSpecs(vehicle);
 
   return (
     <View style={styles.container}>
@@ -366,6 +377,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
             <Text style={styles.nickname}>{vehicle.nickname}</Text>
             {vehicle.plate_number && <Text style={styles.plate}>{vehicle.plate_number}</Text>}
             {vehicle.vin && <Text style={styles.plate}>VIN {vehicle.vin}</Text>}
+            {specsLine !== "" && <Text style={styles.plate}>{specsLine}</Text>}
           </View>
         </View>
 
@@ -535,9 +547,15 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
 
       <EditVehicleModal
         visible={editModalVisible}
+        vehicleClass={vehicle.vehicle_class}
         nickname={vehicle.nickname}
         plateNumber={vehicle.plate_number}
         vin={vehicle.vin}
+        year={vehicle.year}
+        color={vehicle.color}
+        engineSize={vehicle.engine_size}
+        transmission={vehicle.transmission}
+        fuelType={vehicle.fuel_type}
         onCancel={() => setEditModalVisible(false)}
         onSubmit={handleEditSave}
       />

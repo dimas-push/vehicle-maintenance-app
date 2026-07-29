@@ -38,6 +38,10 @@ export interface MaintenanceInterval {
   interval_months: number | null;
 }
 
+export type Transmission = "manual" | "automatic" | "cvt" | "dct" | "other";
+
+export type FuelType = "gasoline" | "diesel" | "electric" | "hybrid" | "other";
+
 export interface Vehicle {
   id: number;
   vehicle_type_id: number;
@@ -48,6 +52,11 @@ export interface Vehicle {
   current_km: number;
   current_km_updated_at: string; // ISO date
   photo_uri: string | null;
+  year: number | null;
+  color: string | null;
+  engine_size: string | null;
+  transmission: Transmission | null;
+  fuel_type: FuelType | null;
   created_at: string;
 }
 

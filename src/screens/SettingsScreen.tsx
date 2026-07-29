@@ -1,11 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Image,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { CompositeScreenProps } from "@react-navigation/native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
+import { getOwnerProfile, isOwnerProfileEmpty, setOwnerProfile, type OwnerProfile } from "../utils/ownerProfile";
+import EditProfileModal from "./EditProfileModal";
 import { type DistanceUnit, type VolumeUnit, displayToKm, kmToDisplay } from "../utils/units";
 import { getReminderThresholds, setReminderThresholds } from "../utils/reminderSettings";
 import { listVehicles } from "../repositories/vehicleRepository";
@@ -45,6 +58,24 @@ export default function SettingsScreen({ navigation }: Props) {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermissionState | null>(null);
+  const [profile, setProfile] = useState<OwnerProfile | null>(null);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      getOwnerProfile().then(setProfile);
+    }, [])
+  );
+
+  async function handleSaveProfile(next: OwnerProfile) {
+    setProfileModalVisible(false);
+    try {
+      await setOwnerProfile(next);
+      setProfile(next);
+    } catch (err) {
+      showErrorAlert("Couldn't save profile", err);
+    }
+  }
 
   useEffect(() => {
     getReminderThresholds().then(({ kmThreshold, daysThreshold }) => {
@@ -136,6 +167,27 @@ export default function SettingsScreen({ navigation }: Props) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {profile && (
+        <Pressable style={styles.profileCard} onPress={() => setProfileModalVisible(true)}>
+          {profile.photoUri ? (
+            <Image source={{ uri: profile.photoUri }} style={styles.profileAvatar} />
+          ) : (
+            <View style={styles.profileAvatarPlaceholder}>
+              <Ionicons name="person" size={24} color={colors.primary} />
+            </View>
+          )}
+          <View style={styles.profileTextWrap}>
+            <Text style={styles.profileName}>{profile.name || "Add your profile"}</Text>
+            <Text style={styles.profileHint}>
+              {isOwnerProfileEmpty(profile)
+                ? "Name, photo, contact info"
+                : [profile.phone, profile.email].filter(Boolean).join(" • ") || "Tap to edit"}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
+        </Pressable>
+      )}
+
       <Text style={styles.sectionTitle}>Distance Unit</Text>
       {OPTIONS.map((option) => {
         const selected = option.value === unit;
@@ -268,6 +320,15 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
       </Pressable>
+
+      {profile && (
+        <EditProfileModal
+          visible={profileModalVisible}
+          profile={profile}
+          onCancel={() => setProfileModalVisible(false)}
+          onSubmit={handleSaveProfile}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -277,6 +338,28 @@ const styles = StyleSheet.create({
   contentContainer: { padding: spacing.md, paddingBottom: spacing.xl },
   sectionTitle: { ...typography.label, marginBottom: spacing.sm },
   sectionSpacing: { marginTop: spacing.lg },
+  profileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    ...shadow.card,
+  },
+  profileAvatar: { width: 48, height: 48, borderRadius: radius.pill, marginRight: spacing.sm },
+  profileAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.sm,
+  },
+  profileTextWrap: { flex: 1 },
+  profileName: { ...typography.body, fontWeight: "700" },
+  profileHint: { ...typography.caption, marginTop: 2 },
   option: {
     flexDirection: "row",
     alignItems: "center",
