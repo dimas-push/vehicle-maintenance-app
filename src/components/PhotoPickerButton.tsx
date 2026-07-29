@@ -45,7 +45,12 @@ export default function PhotoPickerButton({
   }
 
   return (
-    <Pressable style={styles.picker} onPress={handlePress}>
+    <Pressable
+      style={styles.picker}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       {photoUri ? (
         <Image source={{ uri: photoUri }} style={styles.preview} />
       ) : (

@@ -137,7 +137,12 @@ export default function FuelLogScreen({ route }: Props) {
         }}
       />
 
-      <Pressable style={styles.fab} onPress={() => setModalVisible(true)}>
+      <Pressable
+        style={styles.fab}
+        onPress={() => setModalVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Add fuel fill-up"
+      >
         <Ionicons name="add" size={26} color="#fff" />
       </Pressable>
 

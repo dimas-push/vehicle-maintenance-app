@@ -99,6 +99,8 @@ export default function VehicleListScreen({ navigation }: Props) {
       <Pressable
         style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
         onPress={() => navigation.navigate("AddVehicle")}
+        accessibilityRole="button"
+        accessibilityLabel="Add vehicle"
       >
         <Ionicons name="add" size={28} color="#fff" />
       </Pressable>

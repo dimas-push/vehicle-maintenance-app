@@ -104,7 +104,12 @@ export default function Step3Details({ route, navigation }: Props) {
         </Text>
       </View>
 
-      <Pressable style={styles.photoPicker} onPress={handlePickPhoto}>
+      <Pressable
+        style={styles.photoPicker}
+        onPress={handlePickPhoto}
+        accessibilityRole="button"
+        accessibilityLabel="Add vehicle photo"
+      >
         {photoUri ? (
           <Image source={{ uri: photoUri }} style={styles.photoPreview} />
         ) : (

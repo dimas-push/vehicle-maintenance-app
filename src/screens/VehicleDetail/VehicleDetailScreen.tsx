@@ -209,13 +209,28 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerActions}>
-          <Pressable onPress={handleExportReport} hitSlop={8}>
+          <Pressable
+            onPress={handleExportReport}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Export report"
+          >
             <Ionicons name="share-outline" size={22} color={colors.primary} />
           </Pressable>
-          <Pressable onPress={() => setEditModalVisible(true)} hitSlop={8}>
+          <Pressable
+            onPress={() => setEditModalVisible(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Edit vehicle"
+          >
             <Ionicons name="pencil-outline" size={22} color={colors.primary} />
           </Pressable>
-          <Pressable onPress={handleDelete} hitSlop={8}>
+          <Pressable
+            onPress={handleDelete}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Delete vehicle"
+          >
             <Ionicons name="trash-outline" size={22} color={colors.danger} />
           </Pressable>
         </View>
@@ -338,7 +353,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.topRow}>
-          <Pressable onPress={handleChangePhoto}>
+          <Pressable onPress={handleChangePhoto} accessibilityRole="button" accessibilityLabel="Change vehicle photo">
             {vehicle.photo_uri ? (
               <Image source={{ uri: vehicle.photo_uri }} style={styles.photo} />
             ) : (
@@ -394,7 +409,12 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           <>
             <View style={styles.documentsHeader}>
               <Text style={styles.sectionTitle}>Documents</Text>
-              <Pressable onPress={() => setDocumentModalVisible(true)} hitSlop={8}>
+              <Pressable
+                onPress={() => setDocumentModalVisible(true)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Add document"
+              >
                 <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
               </Pressable>
             </View>
@@ -431,7 +451,12 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
             <View style={styles.documentsHeader}>
               <Text style={[styles.sectionTitle, styles.scheduleTitle]}>Loan</Text>
               {!loan && (
-                <Pressable onPress={() => setLoanModalVisible(true)} hitSlop={8}>
+                <Pressable
+                  onPress={() => setLoanModalVisible(true)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add loan"
+                >
                   <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
                 </Pressable>
               )}

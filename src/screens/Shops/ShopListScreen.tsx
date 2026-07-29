@@ -92,18 +92,25 @@ export default function ShopListScreen() {
                   e.stopPropagation();
                   Linking.openURL(`tel:${item.phone}`);
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Call ${item.name}`}
               >
                 <Ionicons name="call-outline" size={18} color={colors.primary} />
               </Pressable>
             )}
-            <Pressable style={styles.deleteButton} onPress={() => confirmDelete(item)}>
+            <Pressable
+              style={styles.deleteButton}
+              onPress={() => confirmDelete(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${item.name}`}
+            >
               <Ionicons name="trash-outline" size={18} color={colors.danger} />
             </Pressable>
           </Pressable>
         )}
       />
 
-      <Pressable style={styles.fab} onPress={openAdd}>
+      <Pressable style={styles.fab} onPress={openAdd} accessibilityRole="button" accessibilityLabel="Add shop">
         <Ionicons name="add" size={26} color="#fff" />
       </Pressable>
 
