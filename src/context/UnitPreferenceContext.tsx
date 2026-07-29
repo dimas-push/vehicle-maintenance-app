@@ -1,19 +1,30 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { type DistanceUnit, getUnitPreference, setUnitPreference } from "../utils/units";
+import {
+  type DistanceUnit,
+  type VolumeUnit,
+  getUnitPreference,
+  getVolumeUnitPreference,
+  setUnitPreference,
+  setVolumeUnitPreference,
+} from "../utils/units";
 
 interface UnitPreferenceValue {
   unit: DistanceUnit;
   setUnit: (unit: DistanceUnit) => void;
+  volumeUnit: VolumeUnit;
+  setVolumeUnit: (unit: VolumeUnit) => void;
 }
 
 const UnitPreferenceContext = createContext<UnitPreferenceValue | null>(null);
 
 export function UnitPreferenceProvider({ children }: { children: ReactNode }) {
   const [unit, setUnitState] = useState<DistanceUnit>("km");
+  const [volumeUnit, setVolumeUnitState] = useState<VolumeUnit>("liters");
 
   useEffect(() => {
     getUnitPreference().then(setUnitState);
+    getVolumeUnitPreference().then(setVolumeUnitState);
   }, []);
 
   function setUnit(next: DistanceUnit) {
@@ -21,8 +32,13 @@ export function UnitPreferenceProvider({ children }: { children: ReactNode }) {
     setUnitPreference(next);
   }
 
+  function setVolumeUnit(next: VolumeUnit) {
+    setVolumeUnitState(next);
+    setVolumeUnitPreference(next);
+  }
+
   return (
-    <UnitPreferenceContext.Provider value={{ unit, setUnit }}>
+    <UnitPreferenceContext.Provider value={{ unit, setUnit, volumeUnit, setVolumeUnit }}>
       {children}
     </UnitPreferenceContext.Provider>
   );

@@ -2,6 +2,7 @@ import { listBrands, listVehicleTypesByBrand } from "../repositories/catalogRepo
 import { createVehicle, listVehicles } from "../repositories/vehicleRepository";
 import { recalculateSchedules, recordMaintenanceDone } from "../repositories/scheduleRepository";
 import { createDocument } from "../repositories/documentRepository";
+import { createFuelLog } from "../repositories/fuelRepository";
 import { notifyDueSchedules } from "../services/notifications";
 import { getDb } from "./index";
 
@@ -62,16 +63,45 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     purchase_date: daysAgo(900),
   });
   if (engineOilId) {
-    await recordMaintenanceDone(dadsBike.id, engineOilId, 13000, daysAgo(120), undefined, 8.5);
+    await recordMaintenanceDone({
+      vehicleId: dadsBike.id,
+      maintenanceItemId: engineOilId,
+      doneAtKm: 13000,
+      doneAtDate: daysAgo(120),
+      cost: 8.5,
+    });
   }
   if (sparkPlugId) {
-    await recordMaintenanceDone(dadsBike.id, sparkPlugId, 14800, daysAgo(20), "New NGK plug", 6);
+    await recordMaintenanceDone({
+      vehicleId: dadsBike.id,
+      maintenanceItemId: sparkPlugId,
+      doneAtKm: 14800,
+      doneAtDate: daysAgo(20),
+      notes: "New NGK plug",
+      cost: 6,
+    });
   }
   await createDocument({
     vehicle_id: dadsBike.id,
     document_type: "insurance",
     label: "Insurance",
     expiry_date: daysFromNow(10),
+  });
+  await createFuelLog({
+    vehicle_id: dadsBike.id,
+    filled_at_km: 15100,
+    filled_at_date: daysAgo(2),
+    volume_liters: 4.2,
+    cost: 5.6,
+    full_tank: true,
+  });
+  await createFuelLog({
+    vehicle_id: dadsBike.id,
+    filled_at_km: 14780,
+    filled_at_date: daysAgo(9),
+    volume_liters: 4.1,
+    cost: 5.5,
+    full_tank: true,
   });
 
   // Mom's Scooter: regular servicing, everything on track
@@ -83,7 +113,13 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     purchase_date: daysAgo(400),
   });
   if (engineOilId) {
-    await recordMaintenanceDone(momsScooter.id, engineOilId, 8300, daysAgo(5), undefined, 7);
+    await recordMaintenanceDone({
+      vehicleId: momsScooter.id,
+      maintenanceItemId: engineOilId,
+      doneAtKm: 8300,
+      doneAtDate: daysAgo(5),
+      cost: 7,
+    });
   }
   await createDocument({
     vehicle_id: momsScooter.id,
@@ -101,10 +137,20 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     purchase_date: daysAgo(700),
   });
   if (cvtBeltId) {
-    await recordMaintenanceDone(alexsNmax.id, cvtBeltId, 0, daysAgo(650));
+    await recordMaintenanceDone({
+      vehicleId: alexsNmax.id,
+      maintenanceItemId: cvtBeltId,
+      doneAtKm: 0,
+      doneAtDate: daysAgo(650),
+    });
   }
   if (engineOilId) {
-    await recordMaintenanceDone(alexsNmax.id, engineOilId, 23700, daysAgo(3));
+    await recordMaintenanceDone({
+      vehicleId: alexsNmax.id,
+      maintenanceItemId: engineOilId,
+      doneAtKm: 23700,
+      doneAtDate: daysAgo(3),
+    });
   }
 
   await recalculateSchedules(dadsBike.id);

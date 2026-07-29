@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, radius, spacing, typography } from "../../theme";
 import { type DistanceUnit, displayToKm, formatDistance, kmToDisplay } from "../../utils/units";
+import PhotoPickerButton from "../../components/PhotoPickerButton";
 
 export default function UpdateKmModal({
   visible,
@@ -14,10 +15,11 @@ export default function UpdateKmModal({
   currentKm: number;
   unit: DistanceUnit;
   onCancel: () => void;
-  onSubmit: (newKm: number) => void;
+  onSubmit: (newKm: number, photoUri: string | null) => void;
 }) {
   const currentDisplay = Math.round(kmToDisplay(currentKm, unit));
   const [value, setValue] = useState(String(currentDisplay));
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   function handleSubmit() {
     const entered = Number(value);
@@ -28,7 +30,8 @@ export default function UpdateKmModal({
       );
       return;
     }
-    onSubmit(Math.round(displayToKm(entered, unit)));
+    onSubmit(Math.round(displayToKm(entered, unit)), photoUri);
+    setPhotoUri(null);
   }
 
   return (
@@ -44,6 +47,13 @@ export default function UpdateKmModal({
             keyboardType="numeric"
             autoFocus
           />
+          <View style={styles.photoSpacing}>
+            <PhotoPickerButton
+              photoUri={photoUri}
+              label="Add Odometer Photo (optional)"
+              onChange={setPhotoUri}
+            />
+          </View>
           <View style={styles.actions}>
             <Pressable style={[styles.button, styles.buttonGhost]} onPress={onCancel}>
               <Text style={styles.buttonGhostText}>Cancel</Text>
@@ -83,7 +93,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  actions: { flexDirection: "row", justifyContent: "flex-end", marginTop: spacing.lg, gap: spacing.sm },
+  photoSpacing: { marginTop: spacing.sm },
+  actions: { flexDirection: "row", justifyContent: "flex-end", marginTop: spacing.md, gap: spacing.sm },
   button: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,

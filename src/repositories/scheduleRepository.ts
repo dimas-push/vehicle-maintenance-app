@@ -97,25 +97,29 @@ export async function listMaintenanceRecords(vehicleId: number): Promise<
   );
 }
 
-export async function recordMaintenanceDone(
-  vehicleId: number,
-  maintenanceItemId: number,
-  doneAtKm: number,
-  doneAtDate: string,
-  notes?: string,
-  cost?: number
-): Promise<void> {
+export interface RecordMaintenanceDoneInput {
+  vehicleId: number;
+  maintenanceItemId: number;
+  doneAtKm: number;
+  doneAtDate: string;
+  notes?: string | null;
+  cost?: number | null;
+  photoUri?: string | null;
+}
+
+export async function recordMaintenanceDone(input: RecordMaintenanceDoneInput): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO maintenance_records
-       (vehicle_id, maintenance_item_id, done_at_km, done_at_date, notes, cost)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    vehicleId,
-    maintenanceItemId,
-    doneAtKm,
-    doneAtDate,
-    notes ?? null,
-    cost ?? null
+       (vehicle_id, maintenance_item_id, done_at_km, done_at_date, notes, cost, photo_uri)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    input.vehicleId,
+    input.maintenanceItemId,
+    input.doneAtKm,
+    input.doneAtDate,
+    input.notes ?? null,
+    input.cost ?? null,
+    input.photoUri ?? null
   );
-  await recalculateSchedules(vehicleId);
+  await recalculateSchedules(input.vehicleId);
 }

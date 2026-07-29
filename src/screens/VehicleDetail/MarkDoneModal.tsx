@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, radius, spacing, typography } from "../../theme";
+import PhotoPickerButton from "../../components/PhotoPickerButton";
 
 export default function MarkDoneModal({
   visible,
@@ -13,16 +14,22 @@ export default function MarkDoneModal({
   itemName: string;
   odometerLabel: string;
   onCancel: () => void;
-  onSubmit: (cost: number | null, notes: string | null) => void;
+  onSubmit: (cost: number | null, notes: string | null, photoUri: string | null) => void;
 }) {
   const [cost, setCost] = useState("");
   const [notes, setNotes] = useState("");
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   function handleSubmit() {
     const parsedCost = cost.trim() ? Number(cost) : null;
-    onSubmit(parsedCost != null && Number.isFinite(parsedCost) ? parsedCost : null, notes.trim() || null);
+    onSubmit(
+      parsedCost != null && Number.isFinite(parsedCost) ? parsedCost : null,
+      notes.trim() || null,
+      photoUri
+    );
     setCost("");
     setNotes("");
+    setPhotoUri(null);
   }
 
   return (
@@ -52,6 +59,9 @@ export default function MarkDoneModal({
             placeholder="e.g. shop name, part brand"
             placeholderTextColor={colors.textSubtle}
           />
+
+          <Text style={styles.label}>Receipt photo (optional)</Text>
+          <PhotoPickerButton photoUri={photoUri} label="Add Receipt Photo" onChange={setPhotoUri} />
 
           <View style={styles.actions}>
             <Pressable style={[styles.button, styles.buttonGhost]} onPress={onCancel}>

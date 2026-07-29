@@ -13,5 +13,6 @@ export const DOCUMENT_TYPE_LABEL: Record<string, string> = {
   tax: "Tax",
   insurance: "Insurance",
   registration: "Registration",
+  warranty: "Warranty",
   other: "Other",
 };

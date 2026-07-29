@@ -20,6 +20,7 @@ import {
   deleteDocument,
   listDocumentsForVehicle,
 } from "../../repositories/documentRepository";
+import { recordOdometerReading } from "../../repositories/odometerRepository";
 import type { DocumentType, MaintenanceSchedule, Vehicle, VehicleDocument } from "../../types/models";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
@@ -28,6 +29,7 @@ import { DOCUMENT_TYPE_LABEL, statusFromExpiry } from "../../utils/documentStatu
 import { getReminderThresholds } from "../../utils/reminderSettings";
 import { notifyDueSchedules } from "../../services/notifications";
 import { deleteVehiclePhoto, pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../../services/photos";
+import { exportServiceReportCsv, exportServiceReportPdf } from "../../services/report";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatDistance } from "../../utils/units";
 import UpdateKmModal from "./UpdateKmModal";
@@ -53,7 +55,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [documentModalVisible, setDocumentModalVisible] = useState(false);
   const [markDoneItem, setMarkDoneItem] = useState<ScheduleRow | null>(null);
-  const { unit } = useUnitPreference();
+  const { unit, volumeUnit } = useUnitPreference();
 
   const reload = useCallback(async () => {
     const [v, s, d, thresholds] = await Promise.all([
@@ -94,10 +96,36 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  async function handleEditSave(nickname: string, plateNumber: string | null) {
+  async function handleEditSave(nickname: string, plateNumber: string | null, vin: string | null) {
     setEditModalVisible(false);
-    await updateVehicleDetails(vehicleId, { nickname, plate_number: plateNumber });
+    await updateVehicleDetails(vehicleId, { nickname, plate_number: plateNumber, vin });
     await reload();
+  }
+
+  function handleExportReport() {
+    Alert.alert("Export Report", "Include service history, fuel log, and documents.", [
+      {
+        text: "PDF",
+        onPress: async () => {
+          try {
+            await exportServiceReportPdf(vehicleId, unit, volumeUnit);
+          } catch (err) {
+            Alert.alert("Export failed", String(err instanceof Error ? err.message : err));
+          }
+        },
+      },
+      {
+        text: "CSV",
+        onPress: async () => {
+          try {
+            await exportServiceReportCsv(vehicleId);
+          } catch (err) {
+            Alert.alert("Export failed", String(err instanceof Error ? err.message : err));
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
   }
 
   function handleChangePhoto() {
@@ -148,6 +176,9 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerActions}>
+          <Pressable onPress={handleExportReport} hitSlop={8}>
+            <Ionicons name="share-outline" size={22} color={colors.primary} />
+          </Pressable>
           <Pressable onPress={() => setEditModalVisible(true)} hitSlop={8}>
             <Ionicons name="pencil-outline" size={22} color={colors.primary} />
           </Pressable>
@@ -157,27 +188,29 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         </View>
       ),
     });
-  }, [navigation, vehicle]);
+  }, [navigation, vehicle, unit, volumeUnit]);
 
-  async function handleUpdateKm(newKm: number) {
+  async function handleUpdateKm(newKm: number, photoUri: string | null) {
     setKmModalVisible(false);
     await updateCurrentKm(vehicleId, newKm);
+    await recordOdometerReading(vehicleId, newKm, photoUri);
     await recalculateSchedules(vehicleId);
     await notifyDueSchedules(vehicleId);
     await reload();
   }
 
-  async function handleMarkDoneSubmit(cost: number | null, notes: string | null) {
+  async function handleMarkDoneSubmit(cost: number | null, notes: string | null, photoUri: string | null) {
     if (!vehicle || !markDoneItem) return;
     setMarkDoneItem(null);
-    await recordMaintenanceDone(
+    await recordMaintenanceDone({
       vehicleId,
-      markDoneItem.maintenance_item_id,
-      vehicle.current_km,
-      new Date().toISOString().slice(0, 10),
-      notes ?? undefined,
-      cost ?? undefined
-    );
+      maintenanceItemId: markDoneItem.maintenance_item_id,
+      doneAtKm: vehicle.current_km,
+      doneAtDate: new Date().toISOString().slice(0, 10),
+      notes,
+      cost,
+      photoUri,
+    });
     await notifyDueSchedules(vehicleId);
     await reload();
   }
@@ -220,6 +253,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           <View style={styles.topRowText}>
             <Text style={styles.nickname}>{vehicle.nickname}</Text>
             {vehicle.plate_number && <Text style={styles.plate}>{vehicle.plate_number}</Text>}
+            {vehicle.vin && <Text style={styles.plate}>VIN {vehicle.vin}</Text>}
           </View>
         </View>
 
@@ -242,6 +276,15 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         >
           <Ionicons name="time-outline" size={16} color={colors.textMuted} />
           <Text style={styles.historyLinkText}>View Service History</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+        </Pressable>
+
+        <Pressable
+          style={[styles.historyLink, styles.noBorderTop]}
+          onPress={() => navigation.navigate("FuelLog", { vehicleId, nickname: vehicle.nickname })}
+        >
+          <Ionicons name="water-outline" size={16} color={colors.textMuted} />
+          <Text style={styles.historyLinkText}>View Fuel Log</Text>
           <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
         </Pressable>
       </View>
@@ -327,6 +370,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         visible={editModalVisible}
         nickname={vehicle.nickname}
         plateNumber={vehicle.plate_number}
+        vin={vehicle.vin}
         onCancel={() => setEditModalVisible(false)}
         onSubmit={handleEditSave}
       />
@@ -388,6 +432,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   historyLinkText: { ...typography.caption, color: colors.textMuted, flex: 1 },
+  noBorderTop: { borderTopWidth: 0, marginTop: 0, paddingTop: 0 },
   kmButton: {
     flexDirection: "row",
     alignItems: "center",

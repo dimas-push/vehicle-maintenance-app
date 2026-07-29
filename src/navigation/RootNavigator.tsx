@@ -3,6 +3,7 @@ import VehicleTabs from "./VehicleTabs";
 import AddVehicleWizard from "../screens/AddVehicle/AddVehicleWizard";
 import VehicleDetailScreen from "../screens/VehicleDetail/VehicleDetailScreen";
 import MaintenanceHistoryScreen from "../screens/VehicleDetail/MaintenanceHistoryScreen";
+import FuelLogScreen from "../screens/VehicleDetail/FuelLogScreen";
 import { colors } from "../theme";
 
 export type RootStackParamList = {
@@ -10,6 +11,7 @@ export type RootStackParamList = {
   AddVehicle: undefined;
   VehicleDetail: { vehicleId: number };
   MaintenanceHistory: { vehicleId: number; nickname: string };
+  FuelLog: { vehicleId: number; nickname: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -40,6 +42,11 @@ export default function RootNavigator() {
         name="MaintenanceHistory"
         component={MaintenanceHistoryScreen}
         options={({ route }) => ({ headerTitle: `${route.params.nickname} — History` })}
+      />
+      <Stack.Screen
+        name="FuelLog"
+        component={FuelLogScreen}
+        options={({ route }) => ({ headerTitle: `${route.params.nickname} — Fuel` })}
       />
     </Stack.Navigator>
   );

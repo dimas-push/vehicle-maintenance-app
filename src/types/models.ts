@@ -31,6 +31,7 @@ export interface Vehicle {
   vehicle_type_id: number;
   nickname: string;
   plate_number: string | null;
+  vin: string | null;
   purchase_date: string | null; // ISO date
   current_km: number;
   current_km_updated_at: string; // ISO date
@@ -45,10 +46,30 @@ export interface MaintenanceRecord {
   done_at_km: number;
   done_at_date: string; // ISO date
   cost: number | null;
+  photo_uri: string | null;
   notes: string | null;
 }
 
-export type DocumentType = "tax" | "insurance" | "registration" | "other";
+export interface OdometerReading {
+  id: number;
+  vehicle_id: number;
+  km: number;
+  recorded_at: string; // ISO date
+  photo_uri: string | null;
+}
+
+export interface FuelLog {
+  id: number;
+  vehicle_id: number;
+  filled_at_km: number;
+  filled_at_date: string; // ISO date
+  volume_liters: number;
+  cost: number | null;
+  full_tank: number; // SQLite boolean: 1 | 0
+  notes: string | null;
+}
+
+export type DocumentType = "tax" | "insurance" | "registration" | "warranty" | "other";
 
 export interface VehicleDocument {
   id: number;

@@ -5,6 +5,7 @@ export interface NewVehicleInput {
   vehicle_type_id: number;
   nickname: string;
   plate_number?: string | null;
+  vin?: string | null;
   purchase_date?: string | null;
   current_km: number;
   photo_uri?: string | null;
@@ -26,11 +27,12 @@ export async function createVehicle(input: NewVehicleInput): Promise<Vehicle> {
 
   const result = await db.runAsync(
     `INSERT INTO vehicles
-       (vehicle_type_id, nickname, plate_number, purchase_date, current_km, current_km_updated_at, photo_uri)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (vehicle_type_id, nickname, plate_number, vin, purchase_date, current_km, current_km_updated_at, photo_uri)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     input.vehicle_type_id,
     input.nickname,
     input.plate_number ?? null,
+    input.vin ?? null,
     input.purchase_date ?? null,
     input.current_km,
     now,
@@ -45,6 +47,7 @@ export async function createVehicle(input: NewVehicleInput): Promise<Vehicle> {
 export interface VehicleDetailsInput {
   nickname: string;
   plate_number?: string | null;
+  vin?: string | null;
 }
 
 export async function updateVehicleDetails(
@@ -53,9 +56,10 @@ export async function updateVehicleDetails(
 ): Promise<void> {
   const db = await getDb();
   await db.runAsync(
-    "UPDATE vehicles SET nickname = ?, plate_number = ? WHERE id = ?",
+    "UPDATE vehicles SET nickname = ?, plate_number = ?, vin = ? WHERE id = ?",
     input.nickname,
     input.plate_number ?? null,
+    input.vin ?? null,
     vehicleId
   );
 }

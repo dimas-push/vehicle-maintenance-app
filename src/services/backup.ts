@@ -14,12 +14,13 @@ import {
   recordMaintenanceDone,
 } from "../repositories/scheduleRepository";
 import { createDocument, listDocumentsForVehicle } from "../repositories/documentRepository";
+import { createFuelLog, listFuelLogs } from "../repositories/fuelRepository";
 import type { DocumentType } from "../types/models";
 import { notifyDueSchedules } from "./notifications";
 
-// Bumped from 1 to 2 to add cost/documents — formatVersion 1 backups still
-// import fine since the new fields are optional on read.
-const BACKUP_FORMAT_VERSION = 2;
+// Bumped from 2 to 3 to add VIN and fuel logs — older backups still import
+// fine since the new fields are optional on read.
+const BACKUP_FORMAT_VERSION = 3;
 
 interface BackupRecord {
   item_name: string;
@@ -36,15 +37,26 @@ interface BackupDocument {
   notes: string | null;
 }
 
+interface BackupFuelLog {
+  filled_at_km: number;
+  filled_at_date: string;
+  volume_liters: number;
+  cost: number | null;
+  full_tank: boolean;
+  notes: string | null;
+}
+
 interface BackupVehicle {
   nickname: string;
   plate_number: string | null;
+  vin?: string | null;
   purchase_date: string | null;
   current_km: number;
   brand: string;
   vehicleType: string;
   records: BackupRecord[];
   documents?: BackupDocument[];
+  fuelLogs?: BackupFuelLog[];
 }
 
 interface BackupFile {
@@ -56,9 +68,9 @@ interface BackupFile {
 async function buildBackupData(): Promise<BackupFile> {
   const vehicles = await listVehicles();
 
-  // Photos are intentionally not included — they're local file paths (or, on
-  // web, large inline data URIs) that wouldn't resolve on a different device
-  // anyway. Re-add the photo manually after restoring if needed.
+  // Photos (vehicle, per-record, odometer) are intentionally not included —
+  // they're local file paths (or, on web, large inline data URIs) that
+  // wouldn't resolve on a different device anyway.
   const backupVehicles: BackupVehicle[] = [];
   for (const vehicle of vehicles) {
     const typeInfo = await getVehicleTypeWithBrandName(vehicle.vehicle_type_id);
@@ -66,10 +78,12 @@ async function buildBackupData(): Promise<BackupFile> {
 
     const records = await listMaintenanceRecords(vehicle.id);
     const documents = await listDocumentsForVehicle(vehicle.id);
+    const fuelLogs = await listFuelLogs(vehicle.id);
 
     backupVehicles.push({
       nickname: vehicle.nickname,
       plate_number: vehicle.plate_number,
+      vin: vehicle.vin,
       purchase_date: vehicle.purchase_date,
       current_km: vehicle.current_km,
       brand: typeInfo.brandName,
@@ -86,6 +100,14 @@ async function buildBackupData(): Promise<BackupFile> {
         label: d.label,
         expiry_date: d.expiry_date,
         notes: d.notes,
+      })),
+      fuelLogs: fuelLogs.map((f) => ({
+        filled_at_km: f.filled_at_km,
+        filled_at_date: f.filled_at_date,
+        volume_liters: f.volume_liters,
+        cost: f.cost,
+        full_tank: f.full_tank === 1,
+        notes: f.notes,
       })),
     });
   }
@@ -170,6 +192,7 @@ export async function importBackup(): Promise<ImportSummary | null> {
       vehicle_type_id: vehicleType.id,
       nickname: backupVehicle.nickname,
       plate_number: backupVehicle.plate_number,
+      vin: backupVehicle.vin ?? null,
       purchase_date: backupVehicle.purchase_date,
       current_km: backupVehicle.current_km,
     });
@@ -177,14 +200,14 @@ export async function importBackup(): Promise<ImportSummary | null> {
     for (const record of backupVehicle.records) {
       const item = await findMaintenanceItemByName(record.item_name);
       if (!item) continue;
-      await recordMaintenanceDone(
-        vehicle.id,
-        item.id,
-        record.done_at_km,
-        record.done_at_date,
-        record.notes ?? undefined,
-        record.cost ?? undefined
-      );
+      await recordMaintenanceDone({
+        vehicleId: vehicle.id,
+        maintenanceItemId: item.id,
+        doneAtKm: record.done_at_km,
+        doneAtDate: record.done_at_date,
+        notes: record.notes,
+        cost: record.cost,
+      });
     }
 
     for (const doc of backupVehicle.documents ?? []) {
@@ -194,6 +217,18 @@ export async function importBackup(): Promise<ImportSummary | null> {
         label: doc.label,
         expiry_date: doc.expiry_date,
         notes: doc.notes,
+      });
+    }
+
+    for (const log of backupVehicle.fuelLogs ?? []) {
+      await createFuelLog({
+        vehicle_id: vehicle.id,
+        filled_at_km: log.filled_at_km,
+        filled_at_date: log.filled_at_date,
+        volume_liters: log.volume_liters,
+        cost: log.cost,
+        full_tank: log.full_tank,
+        notes: log.notes,
       });
     }
 

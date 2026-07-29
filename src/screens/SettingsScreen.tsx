@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
-import { type DistanceUnit, displayToKm, kmToDisplay } from "../utils/units";
+import { type DistanceUnit, type VolumeUnit, displayToKm, kmToDisplay } from "../utils/units";
 import { getReminderThresholds, setReminderThresholds } from "../utils/reminderSettings";
 import { listVehicles } from "../repositories/vehicleRepository";
 import { recalculateSchedules } from "../repositories/scheduleRepository";
@@ -15,8 +15,13 @@ const OPTIONS: { value: DistanceUnit; label: string; hint: string }[] = [
   { value: "mi", label: "Miles", hint: "Used in the US and UK" },
 ];
 
+const VOLUME_OPTIONS: { value: VolumeUnit; label: string; hint: string }[] = [
+  { value: "liters", label: "Liters", hint: "Used in most of the world" },
+  { value: "gallons", label: "Gallons", hint: "US gallons" },
+];
+
 export default function SettingsScreen() {
-  const { unit, setUnit } = useUnitPreference();
+  const { unit, setUnit, volumeUnit, setVolumeUnit } = useUnitPreference();
   const [kmInput, setKmInput] = useState("");
   const [daysInput, setDaysInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -96,6 +101,24 @@ export default function SettingsScreen() {
             key={option.value}
             style={[styles.option, selected && styles.optionSelected]}
             onPress={() => setUnit(option.value)}
+          >
+            <View>
+              <Text style={styles.optionLabel}>{option.label}</Text>
+              <Text style={styles.optionHint}>{option.hint}</Text>
+            </View>
+            {selected && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
+          </Pressable>
+        );
+      })}
+
+      <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Fuel Volume Unit</Text>
+      {VOLUME_OPTIONS.map((option) => {
+        const selected = option.value === volumeUnit;
+        return (
+          <Pressable
+            key={option.value}
+            style={[styles.option, selected && styles.optionSelected]}
+            onPress={() => setVolumeUnit(option.value)}
           >
             <View>
               <Text style={styles.optionLabel}>{option.label}</Text>

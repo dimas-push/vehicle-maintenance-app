@@ -6,24 +6,27 @@ export default function EditVehicleModal({
   visible,
   nickname: initialNickname,
   plateNumber: initialPlateNumber,
+  vin: initialVin,
   onCancel,
   onSubmit,
 }: {
   visible: boolean;
   nickname: string;
   plateNumber: string | null;
+  vin: string | null;
   onCancel: () => void;
-  onSubmit: (nickname: string, plateNumber: string | null) => void;
+  onSubmit: (nickname: string, plateNumber: string | null, vin: string | null) => void;
 }) {
   const [nickname, setNickname] = useState(initialNickname);
   const [plateNumber, setPlateNumber] = useState(initialPlateNumber ?? "");
+  const [vin, setVin] = useState(initialVin ?? "");
 
   function handleSubmit() {
     if (!nickname.trim()) {
       Alert.alert("Vehicle name is required", "Please enter a name for this vehicle");
       return;
     }
-    onSubmit(nickname.trim(), plateNumber.trim() || null);
+    onSubmit(nickname.trim(), plateNumber.trim() || null, vin.trim() || null);
   }
 
   return (
@@ -45,6 +48,14 @@ export default function EditVehicleModal({
             style={styles.input}
             value={plateNumber}
             onChangeText={setPlateNumber}
+            autoCapitalize="characters"
+          />
+
+          <Text style={styles.label}>VIN / chassis number (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={vin}
+            onChangeText={setVin}
             autoCapitalize="characters"
           />
 

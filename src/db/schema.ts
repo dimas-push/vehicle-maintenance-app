@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   vehicle_type_id INTEGER NOT NULL REFERENCES vehicle_types(id),
   nickname TEXT NOT NULL,
   plate_number TEXT,
+  vin TEXT,
   purchase_date TEXT,
   current_km INTEGER NOT NULL DEFAULT 0,
   current_km_updated_at TEXT NOT NULL,
@@ -50,18 +51,45 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
   done_at_km INTEGER NOT NULL,
   done_at_date TEXT NOT NULL,
   cost REAL,
+  photo_uri TEXT,
   notes TEXT
 );
 
--- Legal/administrative documents (tax, insurance, registration) — unlike
--- maintenance items these are purely date-based with no service history,
--- just the current expiry date the user updates on renewal.
+-- Legal/administrative documents (tax, insurance, registration, warranty) —
+-- unlike maintenance items these are purely date-based with no service
+-- history, just the current expiry date the user updates on renewal.
 CREATE TABLE IF NOT EXISTS vehicle_documents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
-  document_type TEXT NOT NULL CHECK (document_type IN ('tax', 'insurance', 'registration', 'other')),
+  document_type TEXT NOT NULL CHECK (document_type IN ('tax', 'insurance', 'registration', 'warranty', 'other')),
   label TEXT NOT NULL,
   expiry_date TEXT NOT NULL,
+  notes TEXT
+);
+
+-- Odometer reading history, separate from vehicles.current_km (which only
+-- holds the latest value) — lets the trend be viewed and a reading backed
+-- by a photo, and is what fuel economy calculations measure distance from.
+CREATE TABLE IF NOT EXISTS odometer_readings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+  km INTEGER NOT NULL,
+  recorded_at TEXT NOT NULL,
+  photo_uri TEXT
+);
+
+-- Fuel fill-ups. Economy is computed between consecutive full_tank rows —
+-- partial fills are logged (for cost tracking) but excluded from the
+-- distance/volume calculation since they don't close a full consumption
+-- cycle.
+CREATE TABLE IF NOT EXISTS fuel_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+  filled_at_km INTEGER NOT NULL,
+  filled_at_date TEXT NOT NULL,
+  volume_liters REAL NOT NULL,
+  cost REAL,
+  full_tank INTEGER NOT NULL DEFAULT 1,
   notes TEXT
 );
 
