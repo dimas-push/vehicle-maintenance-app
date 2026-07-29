@@ -1,5 +1,5 @@
 import { getDb } from "../db";
-import type { MaintenanceSchedule } from "../types/models";
+import type { MaintenanceRecord, MaintenanceSchedule } from "../types/models";
 import { estimateNextDue } from "../utils/maintenanceCalculator";
 import { getVehicle } from "./vehicleRepository";
 
@@ -76,6 +76,20 @@ export async function recalculateSchedules(vehicleId: number): Promise<void> {
       );
     }
   });
+}
+
+export async function listMaintenanceRecords(vehicleId: number): Promise<
+  (MaintenanceRecord & { item_name: string })[]
+> {
+  const db = await getDb();
+  return db.getAllAsync<MaintenanceRecord & { item_name: string }>(
+    `SELECT mr.*, mi.name AS item_name
+       FROM maintenance_records mr
+       JOIN maintenance_items mi ON mi.id = mr.maintenance_item_id
+      WHERE mr.vehicle_id = ?
+      ORDER BY mr.done_at_date DESC, mr.id DESC`,
+    vehicleId
+  );
 }
 
 export async function recordMaintenanceDone(

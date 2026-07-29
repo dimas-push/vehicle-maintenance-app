@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import VehicleListScreen from "../screens/VehicleListScreen";
 import AddVehicleWizard from "../screens/AddVehicle/AddVehicleWizard";
 import VehicleDetailScreen from "../screens/VehicleDetail/VehicleDetailScreen";
+import MaintenanceHistoryScreen from "../screens/VehicleDetail/MaintenanceHistoryScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import { colors } from "../theme";
 
@@ -11,6 +12,7 @@ export type RootStackParamList = {
   VehicleList: undefined;
   AddVehicle: undefined;
   VehicleDetail: { vehicleId: number };
+  MaintenanceHistory: { vehicleId: number; nickname: string };
   Settings: undefined;
 };
 
@@ -48,6 +50,11 @@ export default function RootNavigator() {
         name="VehicleDetail"
         component={VehicleDetailScreen}
         options={{ headerTitle: "Vehicle Details" }}
+      />
+      <Stack.Screen
+        name="MaintenanceHistory"
+        component={MaintenanceHistoryScreen}
+        options={({ route }) => ({ headerTitle: `${route.params.nickname} — History` })}
       />
       <Stack.Screen
         name="Settings"

@@ -142,6 +142,17 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
             <Text style={styles.kmButtonText}>Update Odometer</Text>
           </Pressable>
         </View>
+
+        <Pressable
+          style={styles.historyLink}
+          onPress={() =>
+            navigation.navigate("MaintenanceHistory", { vehicleId, nickname: vehicle.nickname })
+          }
+        >
+          <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+          <Text style={styles.historyLinkText}>View Service History</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+        </Pressable>
       </View>
 
       <FlatList
@@ -210,6 +221,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   kmValue: { fontSize: 22, fontWeight: "700", color: colors.text, marginTop: 2 },
+  historyLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  historyLinkText: { ...typography.caption, color: colors.textMuted, flex: 1 },
   kmButton: {
     flexDirection: "row",
     alignItems: "center",
