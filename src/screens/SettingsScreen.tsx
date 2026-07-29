@@ -17,6 +17,7 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
+import { useAuth } from "../context/AuthContext";
 import { getOwnerProfile, isOwnerProfileEmpty, setOwnerProfile, type OwnerProfile } from "../utils/ownerProfile";
 import EditProfileModal from "./EditProfileModal";
 import { type DistanceUnit, type VolumeUnit, displayToKm, kmToDisplay } from "../utils/units";
@@ -52,6 +53,7 @@ const VOLUME_OPTIONS: { value: VolumeUnit; label: string; hint: string }[] = [
 
 export default function SettingsScreen({ navigation }: Props) {
   const { unit, setUnit, volumeUnit, setVolumeUnit } = useUnitPreference();
+  const { user, signOut } = useAuth();
   const [kmInput, setKmInput] = useState("");
   const [daysInput, setDaysInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -66,6 +68,23 @@ export default function SettingsScreen({ navigation }: Props) {
       getOwnerProfile().then(setProfile);
     }, [])
   );
+
+  function handleSignOut() {
+    Alert.alert("Log out?", "Your vehicle data stays on this device either way.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await signOut();
+          } catch (err) {
+            showErrorAlert("Couldn't log out", err);
+          }
+        },
+      },
+    ]);
+  }
 
   async function handleSaveProfile(next: OwnerProfile) {
     setProfileModalVisible(false);
@@ -188,7 +207,20 @@ export default function SettingsScreen({ navigation }: Props) {
         </Pressable>
       )}
 
-      <Text style={styles.sectionTitle}>Distance Unit</Text>
+      {user && (
+        <>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardHint}>Signed in as {user.email}</Text>
+            <Pressable style={styles.outlineButton} onPress={handleSignOut}>
+              <Ionicons name="log-out-outline" size={18} color={colors.primary} />
+              <Text style={styles.outlineButtonText}>Log Out</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
+
+      <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Distance Unit</Text>
       {OPTIONS.map((option) => {
         const selected = option.value === unit;
         return (

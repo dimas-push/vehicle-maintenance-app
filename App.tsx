@@ -8,7 +8,8 @@ import { getDb } from './src/db';
 import { seedDummyVehiclesIfEmpty } from './src/db/seedDummyData';
 import { initNotifications } from './src/services/notifications';
 import { UnitPreferenceProvider } from './src/context/UnitPreferenceContext';
-import RootNavigator from './src/navigation/RootNavigator';
+import { AuthProvider } from './src/context/AuthContext';
+import AppNavigator from './src/navigation/AppNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { colors, spacing, typography } from './src/theme';
 
@@ -48,11 +49,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <UnitPreferenceProvider>
-        <ErrorBoundary>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
-        </ErrorBoundary>
+        <AuthProvider>
+          <ErrorBoundary>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </ErrorBoundary>
+        </AuthProvider>
         <StatusBar style="dark" />
       </UnitPreferenceProvider>
     </SafeAreaProvider>
