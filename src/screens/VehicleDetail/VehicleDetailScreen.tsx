@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useState } from "react";
 import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   deleteVehicle,
   getVehicle,
@@ -10,6 +10,7 @@ import {
   updateVehicleDetails,
   updateVehiclePhoto,
 } from "../../repositories/vehicleRepository";
+import type { VehicleWithClass } from "../../repositories/vehicleRepository";
 import {
   listSchedulesForVehicle,
   recalculateSchedules,
@@ -21,7 +22,7 @@ import {
   listDocumentsForVehicle,
 } from "../../repositories/documentRepository";
 import { recordOdometerReading } from "../../repositories/odometerRepository";
-import type { DocumentType, MaintenanceSchedule, Vehicle, VehicleDocument } from "../../types/models";
+import type { DocumentType, MaintenanceSchedule, VehicleDocument } from "../../types/models";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 import { STATUS_LABEL, STATUS_STYLE } from "../../utils/scheduleStatusPresentation";
@@ -32,6 +33,7 @@ import { deleteVehiclePhoto, pickVehiclePhotoFromLibrary, takeVehiclePhoto } fro
 import { exportServiceReportCsv, exportServiceReportPdf } from "../../services/report";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatDistance } from "../../utils/units";
+import { vehicleClassIcon } from "../../utils/vehicleIcon";
 import UpdateKmModal from "./UpdateKmModal";
 import EditVehicleModal from "./EditVehicleModal";
 import MarkDoneModal from "./MarkDoneModal";
@@ -47,7 +49,7 @@ function formatDueDate(iso: string | null): string {
 
 export default function VehicleDetailScreen({ route, navigation }: Props) {
   const { vehicleId } = route.params;
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [vehicle, setVehicle] = useState<VehicleWithClass | null>(null);
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
   const [documents, setDocuments] = useState<VehicleDocument[]>([]);
   const [daysThreshold, setDaysThreshold] = useState(14);

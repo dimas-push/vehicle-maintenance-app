@@ -3,12 +3,24 @@ export interface Brand {
   name: string;
 }
 
-export type VehicleCategory = "scooter" | "underbone" | "sport" | "electric";
+export type VehicleClass = "motorcycle" | "car";
+
+export type VehicleCategory =
+  | "scooter"
+  | "underbone"
+  | "sport"
+  | "electric"
+  | "sedan"
+  | "suv"
+  | "truck"
+  | "hatchback"
+  | "coupe";
 
 export interface VehicleType {
   id: number;
   brand_id: number;
   name: string;
+  vehicle_class: VehicleClass;
   category: VehicleCategory;
 }
 
@@ -69,7 +81,13 @@ export interface FuelLog {
   notes: string | null;
 }
 
-export type DocumentType = "tax" | "insurance" | "registration" | "warranty" | "other";
+export type DocumentType =
+  | "tax"
+  | "insurance"
+  | "registration"
+  | "warranty"
+  | "inspection"
+  | "other";
 
 export interface VehicleDocument {
   id: number;

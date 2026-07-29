@@ -1,5 +1,5 @@
 import { getDb } from "../db";
-import type { Vehicle } from "../types/models";
+import type { Vehicle, VehicleClass } from "../types/models";
 
 export interface NewVehicleInput {
   vehicle_type_id: number;
@@ -11,14 +11,29 @@ export interface NewVehicleInput {
   photo_uri?: string | null;
 }
 
-export async function listVehicles(): Promise<Vehicle[]> {
-  const db = await getDb();
-  return db.getAllAsync<Vehicle>("SELECT * FROM vehicles ORDER BY created_at DESC");
+export interface VehicleWithClass extends Vehicle {
+  vehicle_class: VehicleClass;
 }
 
-export async function getVehicle(id: number): Promise<Vehicle | null> {
+export async function listVehicles(): Promise<VehicleWithClass[]> {
   const db = await getDb();
-  return db.getFirstAsync<Vehicle>("SELECT * FROM vehicles WHERE id = ?", id);
+  return db.getAllAsync<VehicleWithClass>(
+    `SELECT v.*, vt.vehicle_class
+       FROM vehicles v
+       JOIN vehicle_types vt ON vt.id = v.vehicle_type_id
+      ORDER BY v.created_at DESC`
+  );
+}
+
+export async function getVehicle(id: number): Promise<VehicleWithClass | null> {
+  const db = await getDb();
+  return db.getFirstAsync<VehicleWithClass>(
+    `SELECT v.*, vt.vehicle_class
+       FROM vehicles v
+       JOIN vehicle_types vt ON vt.id = v.vehicle_type_id
+      WHERE v.id = ?`,
+    id
+  );
 }
 
 export async function createVehicle(input: NewVehicleInput): Promise<Vehicle> {

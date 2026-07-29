@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { listBrands } from "../../repositories/catalogRepository";
+import { listBrandsByClass } from "../../repositories/catalogRepository";
 import type { Brand } from "../../types/models";
 import type { AddVehicleStackParamList } from "./WizardContext";
 import WizardProgress from "../../components/WizardProgress";
@@ -10,16 +10,17 @@ import { colors, radius, shadow, spacing, typography } from "../../theme";
 
 type Props = NativeStackScreenProps<AddVehicleStackParamList, "SelectBrand">;
 
-export default function Step1SelectBrand({ navigation }: Props) {
+export default function Step1SelectBrand({ route, navigation }: Props) {
+  const { vehicleClass } = route.params;
   const [brands, setBrands] = useState<Brand[]>([]);
 
   useEffect(() => {
-    listBrands().then(setBrands);
-  }, []);
+    listBrandsByClass(vehicleClass).then(setBrands);
+  }, [vehicleClass]);
 
   return (
     <View style={styles.container}>
-      <WizardProgress step={1} total={3} label="Select Brand" />
+      <WizardProgress step={2} total={4} label="Select Brand" />
       <FlatList
         data={brands}
         keyExtractor={(b) => String(b.id)}
@@ -27,7 +28,7 @@ export default function Step1SelectBrand({ navigation }: Props) {
           <Pressable
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() =>
-              navigation.navigate("SelectType", { brandId: item.id, brandName: item.name })
+              navigation.navigate("SelectType", { vehicleClass, brandId: item.id, brandName: item.name })
             }
           >
             <Text style={styles.itemText}>{item.name}</Text>
@@ -37,7 +38,7 @@ export default function Step1SelectBrand({ navigation }: Props) {
         ListFooterComponent={
           <Pressable
             style={({ pressed }) => [styles.item, styles.otherItem, pressed && styles.itemPressed]}
-            onPress={() => navigation.navigate("CustomVehicleType", {})}
+            onPress={() => navigation.navigate("CustomVehicleType", { vehicleClass })}
           >
             <Text style={styles.otherItemText}>My brand isn't listed</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />

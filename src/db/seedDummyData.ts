@@ -1,4 +1,4 @@
-import { listBrands, listVehicleTypesByBrand } from "../repositories/catalogRepository";
+import { listBrandsByClass, listVehicleTypesByBrand } from "../repositories/catalogRepository";
 import { createVehicle, listVehicles } from "../repositories/vehicleRepository";
 import { recalculateSchedules, recordMaintenanceDone } from "../repositories/scheduleRepository";
 import { createDocument } from "../repositories/documentRepository";
@@ -19,26 +19,30 @@ function daysAgo(n: number): string {
 }
 
 /**
- * Adds 3 sample vehicles plus service history so schedule status varies
- * (overdue / due_soon / ontrack) — used for demo/dev only, not production
- * data. Only runs if the vehicles table is still empty.
+ * Adds 4 sample vehicles (3 motorcycles, 1 car) plus service history so
+ * schedule status varies (overdue / due_soon / ontrack) — used for demo/dev
+ * only, not production data. Only runs if the vehicles table is still empty.
  */
 export async function seedDummyVehiclesIfEmpty(): Promise<void> {
   const existing = await listVehicles();
   if (existing.length > 0) return;
 
-  const brands = await listBrands();
-  const honda = brands.find((b) => b.name === "Honda");
-  const yamaha = brands.find((b) => b.name === "Yamaha");
-  if (!honda || !yamaha) return;
+  const motoBrands = await listBrandsByClass("motorcycle");
+  const honda = motoBrands.find((b) => b.name === "Honda");
+  const yamaha = motoBrands.find((b) => b.name === "Yamaha");
+  const carBrands = await listBrandsByClass("car");
+  const toyota = carBrands.find((b) => b.name === "Toyota");
+  if (!honda || !yamaha || !toyota) return;
 
-  const hondaTypes = await listVehicleTypesByBrand(honda.id);
-  const yamahaTypes = await listVehicleTypesByBrand(yamaha.id);
+  const hondaTypes = await listVehicleTypesByBrand(honda.id, "motorcycle");
+  const yamahaTypes = await listVehicleTypesByBrand(yamaha.id, "motorcycle");
+  const toyotaTypes = await listVehicleTypesByBrand(toyota.id, "car");
 
   const beat = hondaTypes.find((t) => t.name === "Beat");
   const vario = hondaTypes.find((t) => t.name === "Vario 125");
   const nmax = yamahaTypes.find((t) => t.name === "NMAX");
-  if (!beat || !vario || !nmax) return;
+  const camry = toyotaTypes.find((t) => t.name === "Camry");
+  if (!beat || !vario || !nmax || !camry) return;
 
   const db = await getDb();
 
@@ -53,6 +57,7 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
   const engineOilId = await findItemId("Engine oil");
   const sparkPlugId = await findItemId("Spark plug");
   const cvtBeltId = await findItemId("CVT drive belt");
+  const coolantId = await findItemId("Coolant");
 
   // Dad's Bike: engine oil overdue -> last done 4 months ago, well past the interval
   const dadsBike = await createVehicle({
@@ -153,11 +158,62 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     });
   }
 
+  // Family Car: a Toyota Camry, showing car-specific items and an Inspection reminder
+  const familyCar = await createVehicle({
+    vehicle_type_id: camry.id,
+    nickname: "Family Car",
+    plate_number: "XYZ-7890",
+    vin: "4T1BF1FK5CU123456",
+    current_km: 62000,
+    purchase_date: daysAgo(1200),
+  });
+  if (engineOilId) {
+    await recordMaintenanceDone({
+      vehicleId: familyCar.id,
+      maintenanceItemId: engineOilId,
+      doneAtKm: 60000,
+      doneAtDate: daysAgo(150),
+      cost: 65,
+    });
+  }
+  if (coolantId) {
+    await recordMaintenanceDone({
+      vehicleId: familyCar.id,
+      maintenanceItemId: coolantId,
+      doneAtKm: 0,
+      doneAtDate: daysAgo(1150),
+    });
+  }
+  await createDocument({
+    vehicle_id: familyCar.id,
+    document_type: "inspection",
+    label: "State Inspection",
+    expiry_date: daysFromNow(12),
+  });
+  await createFuelLog({
+    vehicle_id: familyCar.id,
+    filled_at_km: 61850,
+    filled_at_date: daysAgo(3),
+    volume_liters: 45,
+    cost: 52,
+    full_tank: true,
+  });
+  await createFuelLog({
+    vehicle_id: familyCar.id,
+    filled_at_km: 61420,
+    filled_at_date: daysAgo(10),
+    volume_liters: 43,
+    cost: 50,
+    full_tank: true,
+  });
+
   await recalculateSchedules(dadsBike.id);
   await recalculateSchedules(momsScooter.id);
   await recalculateSchedules(alexsNmax.id);
+  await recalculateSchedules(familyCar.id);
 
   await notifyDueSchedules(dadsBike.id);
   await notifyDueSchedules(momsScooter.id);
   await notifyDueSchedules(alexsNmax.id);
+  await notifyDueSchedules(familyCar.id);
 }

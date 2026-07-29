@@ -11,16 +11,16 @@ import { colors, radius, shadow, spacing, typography } from "../../theme";
 type Props = NativeStackScreenProps<AddVehicleStackParamList, "SelectType">;
 
 export default function Step2SelectType({ route, navigation }: Props) {
-  const { brandId, brandName } = route.params;
+  const { vehicleClass, brandId, brandName } = route.params;
   const [types, setTypes] = useState<VehicleType[]>([]);
 
   useEffect(() => {
-    listVehicleTypesByBrand(brandId).then(setTypes);
-  }, [brandId]);
+    listVehicleTypesByBrand(brandId, vehicleClass).then(setTypes);
+  }, [brandId, vehicleClass]);
 
   return (
     <View style={styles.container}>
-      <WizardProgress step={2} total={3} label={`Select ${brandName} Model`} />
+      <WizardProgress step={3} total={4} label={`Select ${brandName} Model`} />
       <FlatList
         data={types}
         keyExtractor={(t) => String(t.id)}
@@ -29,6 +29,7 @@ export default function Step2SelectType({ route, navigation }: Props) {
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() =>
               navigation.navigate("Details", {
+                vehicleClass,
                 brandName,
                 vehicleTypeId: item.id,
                 vehicleTypeName: item.name,
@@ -42,7 +43,7 @@ export default function Step2SelectType({ route, navigation }: Props) {
         ListFooterComponent={
           <Pressable
             style={({ pressed }) => [styles.item, styles.otherItem, pressed && styles.itemPressed]}
-            onPress={() => navigation.navigate("CustomVehicleType", { brandName })}
+            onPress={() => navigation.navigate("CustomVehicleType", { vehicleClass, brandName })}
           >
             <Text style={styles.otherItemText}>My model isn't listed</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />

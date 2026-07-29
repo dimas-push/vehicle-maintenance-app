@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import SelectVehicleClass from "./SelectVehicleClass";
 import Step1SelectBrand from "./Step1SelectBrand";
 import Step2SelectType from "./Step2SelectType";
 import CustomVehicleType from "./CustomVehicleType";
@@ -20,6 +21,7 @@ export default function AddVehicleWizard() {
         headerShadowVisible: false,
       }}
     >
+      <Stack.Screen name="SelectVehicleClass" component={SelectVehicleClass} />
       <Stack.Screen name="SelectBrand" component={Step1SelectBrand} />
       <Stack.Screen name="SelectType" component={Step2SelectType} />
       <Stack.Screen name="CustomVehicleType" component={CustomVehicleType} />

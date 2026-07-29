@@ -6,14 +6,16 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { listVehicles } from "../repositories/vehicleRepository";
+import type { VehicleWithClass } from "../repositories/vehicleRepository";
 import { listSchedulesForVehicle } from "../repositories/scheduleRepository";
-import type { ScheduleStatus, Vehicle } from "../types/models";
+import type { ScheduleStatus } from "../types/models";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import type { VehicleTabsParamList } from "../navigation/VehicleTabs";
 import { colors, radius, shadow, spacing, typography } from "../theme";
 import { STATUS_LABEL, STATUS_STYLE, worstStatus } from "../utils/scheduleStatusPresentation";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
 import { formatDistance } from "../utils/units";
+import { vehicleClassIcon } from "../utils/vehicleIcon";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<VehicleTabsParamList, "Vehicles">,
@@ -26,7 +28,7 @@ async function worstStatusFor(vehicleId: number): Promise<ScheduleStatus | null>
 }
 
 export default function VehicleListScreen({ navigation }: Props) {
-  const [vehicles, setVehicles] = useState<(Vehicle & { worstStatus: ScheduleStatus | null })[]>([]);
+  const [vehicles, setVehicles] = useState<(VehicleWithClass & { worstStatus: ScheduleStatus | null })[]>([]);
   const { unit } = useUnitPreference();
 
   useFocusEffect(
@@ -66,7 +68,11 @@ export default function VehicleListScreen({ navigation }: Props) {
                   <Image source={{ uri: item.photo_uri }} style={styles.cardPhoto} />
                 ) : (
                   <View style={styles.cardIconWrap}>
-                    <MaterialCommunityIcons name="motorbike" size={22} color={colors.primary} />
+                    <MaterialCommunityIcons
+                      name={vehicleClassIcon(item.vehicle_class)}
+                      size={22}
+                      color={colors.primary}
+                    />
                   </View>
                 )}
                 <View style={styles.cardBody}>

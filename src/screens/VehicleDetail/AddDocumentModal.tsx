@@ -4,7 +4,7 @@ import type { DocumentType } from "../../types/models";
 import { DOCUMENT_TYPE_LABEL } from "../../utils/documentStatus";
 import { colors, radius, spacing, typography } from "../../theme";
 
-const TYPES: DocumentType[] = ["tax", "insurance", "registration", "warranty", "other"];
+const TYPES: DocumentType[] = ["tax", "insurance", "registration", "warranty", "inspection", "other"];
 
 export default function AddDocumentModal({
   visible,

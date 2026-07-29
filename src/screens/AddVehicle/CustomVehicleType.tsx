@@ -9,9 +9,10 @@ import { colors, radius, shadow, spacing, typography } from "../../theme";
 type Props = NativeStackScreenProps<AddVehicleStackParamList, "CustomVehicleType">;
 
 export default function CustomVehicleType({ route, navigation }: Props) {
-  const presetBrandName = route.params?.brandName;
+  const { vehicleClass, brandName: presetBrandName } = route.params;
   const [brandName, setBrandName] = useState(presetBrandName ?? "");
   const [modelName, setModelName] = useState("");
+  const isCar = vehicleClass === "car";
 
   function handleContinue() {
     if (!brandName.trim() || !modelName.trim()) {
@@ -19,6 +20,7 @@ export default function CustomVehicleType({ route, navigation }: Props) {
       return;
     }
     navigation.navigate("Details", {
+      vehicleClass,
       brandName: brandName.trim(),
       vehicleTypeName: modelName.trim(),
     });
@@ -26,7 +28,7 @@ export default function CustomVehicleType({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <WizardProgress step={2} total={3} label="Enter Your Vehicle" />
+      <WizardProgress step={presetBrandName ? 3 : 2} total={4} label="Enter Your Vehicle" />
       <Text style={styles.hint}>
         Not in our list yet — no problem. We'll use standard maintenance intervals until you have
         better data of your own.
@@ -44,7 +46,7 @@ export default function CustomVehicleType({ route, navigation }: Props) {
           <Text style={styles.label}>Brand</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. Kawasaki"
+            placeholder={isCar ? "e.g. Kia" : "e.g. Kawasaki"}
             placeholderTextColor={colors.textSubtle}
             value={brandName}
             onChangeText={setBrandName}
@@ -55,7 +57,7 @@ export default function CustomVehicleType({ route, navigation }: Props) {
       <Text style={styles.label}>Model</Text>
       <TextInput
         style={styles.input}
-        placeholder="e.g. Ninja 250"
+        placeholder={isCar ? "e.g. Sportage" : "e.g. Ninja 250"}
         placeholderTextColor={colors.textSubtle}
         value={modelName}
         onChangeText={setModelName}

@@ -1,6 +1,14 @@
+import type { VehicleClass } from "../../types/models";
+
 export type AddVehicleStackParamList = {
-  SelectBrand: undefined;
-  SelectType: { brandId: number; brandName: string };
-  CustomVehicleType: { brandName?: string };
-  Details: { brandName: string; vehicleTypeName: string; vehicleTypeId?: number };
+  SelectVehicleClass: undefined;
+  SelectBrand: { vehicleClass: VehicleClass };
+  SelectType: { vehicleClass: VehicleClass; brandId: number; brandName: string };
+  CustomVehicleType: { vehicleClass: VehicleClass; brandName?: string };
+  Details: {
+    vehicleClass: VehicleClass;
+    brandName: string;
+    vehicleTypeName: string;
+    vehicleTypeId?: number;
+  };
 };

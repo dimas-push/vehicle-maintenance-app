@@ -1,21 +1,32 @@
 import type { SQLiteDatabase } from "expo-sqlite";
-import { GENERIC_INTERVALS, MAINTENANCE_ITEMS } from "./genericIntervals";
+import type { VehicleCategory, VehicleClass } from "../types/models";
+import { allMaintenanceItems, intervalsForClass } from "./genericIntervals";
 
 /**
- * Initial catalog data: 5 scooter models (trimmed down from a planned 23)
- * to speed up the MVP. The maintenance intervals are general figures used
- * across brands (not per-model research with a confidence rating) —
- * re-check them against each manufacturer's manual before citing them as a
- * final reference in a report.
+ * Initial catalog data — a small, recognizable starting set rather than an
+ * exhaustive database. Motorcycles: 5 scooter models (trimmed down from a
+ * planned 23). Cars: 5 widely-known US-market models added when the app's
+ * audience expanded beyond motorcycle-only markets. Users whose vehicle
+ * isn't listed can still add it via the "not listed" wizard flow.
  */
-const BRANDS = ["Honda", "Yamaha"] as const;
+const BRANDS = ["Honda", "Yamaha", "Toyota", "Ford", "Tesla"] as const;
 
-const VEHICLE_TYPES: { brand: string; name: string }[] = [
-  { brand: "Honda", name: "Beat" },
-  { brand: "Honda", name: "Vario 125" },
-  { brand: "Honda", name: "PCX160" },
-  { brand: "Yamaha", name: "NMAX" },
-  { brand: "Yamaha", name: "Mio" },
+const VEHICLE_TYPES: {
+  brand: string;
+  name: string;
+  vehicleClass: VehicleClass;
+  category: VehicleCategory;
+}[] = [
+  { brand: "Honda", name: "Beat", vehicleClass: "motorcycle", category: "scooter" },
+  { brand: "Honda", name: "Vario 125", vehicleClass: "motorcycle", category: "scooter" },
+  { brand: "Honda", name: "PCX160", vehicleClass: "motorcycle", category: "scooter" },
+  { brand: "Yamaha", name: "NMAX", vehicleClass: "motorcycle", category: "scooter" },
+  { brand: "Yamaha", name: "Mio", vehicleClass: "motorcycle", category: "scooter" },
+  { brand: "Toyota", name: "Camry", vehicleClass: "car", category: "sedan" },
+  { brand: "Honda", name: "Civic", vehicleClass: "car", category: "sedan" },
+  { brand: "Honda", name: "CR-V", vehicleClass: "car", category: "suv" },
+  { brand: "Ford", name: "F-150", vehicleClass: "car", category: "truck" },
+  { brand: "Tesla", name: "Model 3", vehicleClass: "car", category: "electric" },
 ];
 
 export async function seedCatalog(db: SQLiteDatabase): Promise<void> {
@@ -34,13 +45,15 @@ export async function seedCatalog(db: SQLiteDatabase): Promise<void> {
       );
       if (!brandRow) continue;
       await db.runAsync(
-        "INSERT OR IGNORE INTO vehicle_types (brand_id, name, category) VALUES (?, ?, 'scooter')",
+        "INSERT OR IGNORE INTO vehicle_types (brand_id, name, vehicle_class, category) VALUES (?, ?, ?, ?)",
         brandRow.id,
-        type.name
+        type.name,
+        type.vehicleClass,
+        type.category
       );
     }
 
-    for (const item of MAINTENANCE_ITEMS) {
+    for (const item of allMaintenanceItems()) {
       await db.runAsync(
         "INSERT OR IGNORE INTO maintenance_items (name, description) VALUES (?, ?)",
         item.name,
@@ -48,21 +61,24 @@ export async function seedCatalog(db: SQLiteDatabase): Promise<void> {
       );
     }
 
-    const allTypes = await db.getAllAsync<{ id: number }>("SELECT id FROM vehicle_types");
+    const allTypes = await db.getAllAsync<{ id: number; vehicle_class: VehicleClass }>(
+      "SELECT id, vehicle_class FROM vehicle_types"
+    );
     const allItems = await db.getAllAsync<{ id: number; name: string }>(
       "SELECT id, name FROM maintenance_items"
     );
+    const itemIdByName = new Map(allItems.map((i) => [i.name, i.id]));
 
     for (const type of allTypes) {
-      for (const item of allItems) {
-        const interval = GENERIC_INTERVALS[item.name];
-        if (!interval) continue;
+      for (const interval of intervalsForClass(type.vehicle_class)) {
+        const itemId = itemIdByName.get(interval.name);
+        if (!itemId) continue;
         await db.runAsync(
           `INSERT OR IGNORE INTO maintenance_intervals
              (vehicle_type_id, maintenance_item_id, interval_km, interval_months)
            VALUES (?, ?, ?, ?)`,
           type.id,
-          item.id,
+          itemId,
           interval.km,
           interval.months
         );

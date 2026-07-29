@@ -1,17 +1,28 @@
 import { getDb } from "../db";
-import type { Brand, MaintenanceInterval, VehicleType } from "../types/models";
-import { GENERIC_INTERVALS } from "../db/genericIntervals";
+import type { Brand, MaintenanceInterval, VehicleClass, VehicleType } from "../types/models";
+import { intervalsForClass } from "../db/genericIntervals";
 
-export async function listBrands(): Promise<Brand[]> {
+export async function listBrandsByClass(vehicleClass: VehicleClass): Promise<Brand[]> {
   const db = await getDb();
-  return db.getAllAsync<Brand>("SELECT * FROM brands ORDER BY name");
+  return db.getAllAsync<Brand>(
+    `SELECT DISTINCT b.*
+       FROM brands b
+       JOIN vehicle_types vt ON vt.brand_id = b.id
+      WHERE vt.vehicle_class = ?
+      ORDER BY b.name`,
+    vehicleClass
+  );
 }
 
-export async function listVehicleTypesByBrand(brandId: number): Promise<VehicleType[]> {
+export async function listVehicleTypesByBrand(
+  brandId: number,
+  vehicleClass: VehicleClass
+): Promise<VehicleType[]> {
   const db = await getDb();
   return db.getAllAsync<VehicleType>(
-    "SELECT * FROM vehicle_types WHERE brand_id = ? ORDER BY name",
-    brandId
+    "SELECT * FROM vehicle_types WHERE brand_id = ? AND vehicle_class = ? ORDER BY name",
+    brandId,
+    vehicleClass
   );
 }
 
@@ -56,7 +67,9 @@ export async function findVehicleTypeByNames(
  * existing brand/type by case-insensitive name match if one already exists
  * (e.g. a second custom "Kawasaki Ninja" doesn't create a duplicate row),
  * otherwise creates it and seeds it with the same generic maintenance
- * intervals used for the catalog models, so scheduling still works.
+ * intervals used for the catalog models, so scheduling still works. A brand
+ * like Honda can have both motorcycle and car types under the same row —
+ * only the vehicle_type is class-specific.
  */
 export async function findOrCreateBrand(name: string): Promise<Brand> {
   const db = await getDb();
@@ -71,40 +84,55 @@ export async function findOrCreateBrand(name: string): Promise<Brand> {
   return { id: result.lastInsertRowId, name: trimmed };
 }
 
-export async function findOrCreateVehicleType(brandId: number, typeName: string): Promise<VehicleType> {
+const DEFAULT_CATEGORY: Record<VehicleClass, VehicleType["category"]> = {
+  motorcycle: "scooter",
+  car: "sedan",
+};
+
+export async function findOrCreateVehicleType(
+  brandId: number,
+  typeName: string,
+  vehicleClass: VehicleClass
+): Promise<VehicleType> {
   const db = await getDb();
   const trimmed = typeName.trim();
   const existing = await db.getFirstAsync<VehicleType>(
-    "SELECT * FROM vehicle_types WHERE brand_id = ? AND name = ? COLLATE NOCASE",
+    "SELECT * FROM vehicle_types WHERE brand_id = ? AND name = ? COLLATE NOCASE AND vehicle_class = ?",
     brandId,
-    trimmed
+    trimmed,
+    vehicleClass
   );
   if (existing) return existing;
 
+  const category = DEFAULT_CATEGORY[vehicleClass];
   const result = await db.runAsync(
-    "INSERT INTO vehicle_types (brand_id, name, category) VALUES (?, ?, 'scooter')",
+    "INSERT INTO vehicle_types (brand_id, name, vehicle_class, category) VALUES (?, ?, ?, ?)",
     brandId,
-    trimmed
+    trimmed,
+    vehicleClass,
+    category
   );
   const vehicleTypeId = result.lastInsertRowId;
 
   const items = await db.getAllAsync<{ id: number; name: string }>(
     "SELECT id, name FROM maintenance_items"
   );
-  for (const item of items) {
-    const interval = GENERIC_INTERVALS[item.name];
-    if (!interval) continue;
+  const itemIdByName = new Map(items.map((i) => [i.name, i.id]));
+
+  for (const interval of intervalsForClass(vehicleClass)) {
+    const itemId = itemIdByName.get(interval.name);
+    if (!itemId) continue;
     await db.runAsync(
       `INSERT INTO maintenance_intervals (vehicle_type_id, maintenance_item_id, interval_km, interval_months)
        VALUES (?, ?, ?, ?)`,
       vehicleTypeId,
-      item.id,
+      itemId,
       interval.km,
       interval.months
     );
   }
 
-  return { id: vehicleTypeId, brand_id: brandId, name: trimmed, category: "scooter" };
+  return { id: vehicleTypeId, brand_id: brandId, name: trimmed, vehicle_class: vehicleClass, category };
 }
 
 export async function findMaintenanceItemByName(

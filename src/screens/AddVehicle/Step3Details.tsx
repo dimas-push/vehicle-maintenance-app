@@ -9,6 +9,7 @@ import { notifyDueSchedules } from "../../services/notifications";
 import { pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../../services/photos";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { displayToKm } from "../../utils/units";
+import { vehicleClassIcon } from "../../utils/vehicleIcon";
 import type { AddVehicleStackParamList } from "./WizardContext";
 import WizardProgress from "../../components/WizardProgress";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
@@ -16,7 +17,7 @@ import { colors, radius, shadow, spacing, typography } from "../../theme";
 type Props = NativeStackScreenProps<AddVehicleStackParamList, "Details">;
 
 export default function Step3Details({ route, navigation }: Props) {
-  const { brandName, vehicleTypeId, vehicleTypeName } = route.params;
+  const { vehicleClass, brandName, vehicleTypeId, vehicleTypeName } = route.params;
   const [nickname, setNickname] = useState("");
   const [plateNumber, setPlateNumber] = useState("");
   const [currentKm, setCurrentKm] = useState("");
@@ -68,7 +69,7 @@ export default function Step3Details({ route, navigation }: Props) {
       let resolvedTypeId = vehicleTypeId;
       if (!resolvedTypeId) {
         const brand = await findOrCreateBrand(brandName);
-        const vehicleType = await findOrCreateVehicleType(brand.id, vehicleTypeName);
+        const vehicleType = await findOrCreateVehicleType(brand.id, vehicleTypeName, vehicleClass);
         resolvedTypeId = vehicleType.id;
       }
 
@@ -91,11 +92,11 @@ export default function Step3Details({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <WizardProgress step={3} total={3} label="Vehicle Details" />
+      <WizardProgress step={4} total={4} label="Vehicle Details" />
 
       <View style={styles.summary}>
         <View style={styles.summaryIconWrap}>
-          <MaterialCommunityIcons name="motorbike" size={20} color={colors.primary} />
+          <MaterialCommunityIcons name={vehicleClassIcon(vehicleClass)} size={20} color={colors.primary} />
         </View>
         <Text style={styles.summaryText}>
           {brandName} {vehicleTypeName}

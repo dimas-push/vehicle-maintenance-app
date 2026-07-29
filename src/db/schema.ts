@@ -11,7 +11,11 @@ CREATE TABLE IF NOT EXISTS vehicle_types (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   brand_id INTEGER NOT NULL REFERENCES brands(id),
   name TEXT NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('scooter', 'underbone', 'sport', 'electric')),
+  vehicle_class TEXT NOT NULL CHECK (vehicle_class IN ('motorcycle', 'car')),
+  category TEXT NOT NULL CHECK (category IN (
+    'scooter', 'underbone', 'sport', 'electric',
+    'sedan', 'suv', 'truck', 'hatchback', 'coupe'
+  )),
   UNIQUE (brand_id, name)
 );
 
@@ -55,13 +59,16 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
   notes TEXT
 );
 
--- Legal/administrative documents (tax, insurance, registration, warranty) —
--- unlike maintenance items these are purely date-based with no service
--- history, just the current expiry date the user updates on renewal.
+-- Legal/administrative documents (tax, insurance, registration, warranty,
+-- inspection) — unlike maintenance items these are purely date-based with
+-- no service history, just the current expiry date the user updates on
+-- renewal. "Inspection" covers the periodic roadworthiness/safety check
+-- required in many markets under different names (MOT in the UK, TÜV/HU in
+-- Germany, Shaken in Japan, state safety inspection in parts of the US).
 CREATE TABLE IF NOT EXISTS vehicle_documents (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
-  document_type TEXT NOT NULL CHECK (document_type IN ('tax', 'insurance', 'registration', 'warranty', 'other')),
+  document_type TEXT NOT NULL CHECK (document_type IN ('tax', 'insurance', 'registration', 'warranty', 'inspection', 'other')),
   label TEXT NOT NULL,
   expiry_date TEXT NOT NULL,
   notes TEXT

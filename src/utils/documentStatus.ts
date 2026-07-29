@@ -14,5 +14,6 @@ export const DOCUMENT_TYPE_LABEL: Record<string, string> = {
   insurance: "Insurance",
   registration: "Registration",
   warranty: "Warranty",
+  inspection: "Inspection",
   other: "Other",
 };
