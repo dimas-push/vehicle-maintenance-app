@@ -1,9 +1,14 @@
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { getVehicle, updateCurrentKm } from "../../repositories/vehicleRepository";
+import {
+  deleteVehicle,
+  getVehicle,
+  updateCurrentKm,
+  updateVehicleDetails,
+} from "../../repositories/vehicleRepository";
 import {
   listSchedulesForVehicle,
   recalculateSchedules,
@@ -15,6 +20,7 @@ import { colors, radius, shadow, spacing, typography } from "../../theme";
 import { STATUS_LABEL, STATUS_STYLE } from "../../utils/scheduleStatusPresentation";
 import { notifyDueSchedules } from "../../services/notifications";
 import UpdateKmModal from "./UpdateKmModal";
+import EditVehicleModal from "./EditVehicleModal";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VehicleDetail">;
 type ScheduleRow = MaintenanceSchedule & { item_name: string };
@@ -24,11 +30,12 @@ function formatDueDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export default function VehicleDetailScreen({ route }: Props) {
+export default function VehicleDetailScreen({ route, navigation }: Props) {
   const { vehicleId } = route.params;
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
   const [kmModalVisible, setKmModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   const reload = useCallback(async () => {
     const [v, s] = await Promise.all([getVehicle(vehicleId), listSchedulesForVehicle(vehicleId)]);
@@ -41,6 +48,46 @@ export default function VehicleDetailScreen({ route }: Props) {
       reload();
     }, [reload])
   );
+
+  function handleDelete() {
+    if (!vehicle) return;
+    Alert.alert(
+      "Delete this vehicle?",
+      `${vehicle.nickname} and all its service history will be permanently removed. This can't be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteVehicle(vehicleId);
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleEditSave(nickname: string, plateNumber: string | null) {
+    setEditModalVisible(false);
+    await updateVehicleDetails(vehicleId, { nickname, plate_number: plateNumber });
+    await reload();
+  }
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={styles.headerActions}>
+          <Pressable onPress={() => setEditModalVisible(true)} hitSlop={8}>
+            <Ionicons name="pencil-outline" size={22} color={colors.primary} />
+          </Pressable>
+          <Pressable onPress={handleDelete} hitSlop={8}>
+            <Ionicons name="trash-outline" size={22} color={colors.danger} />
+          </Pressable>
+        </View>
+      ),
+    });
+  }, [navigation, vehicle]);
 
   async function handleUpdateKm(newKm: number) {
     setKmModalVisible(false);
@@ -129,12 +176,21 @@ export default function VehicleDetailScreen({ route }: Props) {
         onCancel={() => setKmModalVisible(false)}
         onSubmit={handleUpdateKm}
       />
+
+      <EditVehicleModal
+        visible={editModalVisible}
+        nickname={vehicle.nickname}
+        plateNumber={vehicle.plate_number}
+        onCancel={() => setEditModalVisible(false)}
+        onSubmit={handleEditSave}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  headerActions: { flexDirection: "row", gap: spacing.md, marginRight: spacing.sm },
   header: {
     backgroundColor: colors.surface,
     padding: spacing.md,

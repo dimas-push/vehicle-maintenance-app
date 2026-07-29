@@ -40,6 +40,24 @@ export async function createVehicle(input: NewVehicleInput): Promise<Vehicle> {
   return vehicle;
 }
 
+export interface VehicleDetailsInput {
+  nickname: string;
+  plate_number?: string | null;
+}
+
+export async function updateVehicleDetails(
+  vehicleId: number,
+  input: VehicleDetailsInput
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    "UPDATE vehicles SET nickname = ?, plate_number = ? WHERE id = ?",
+    input.nickname,
+    input.plate_number ?? null,
+    vehicleId
+  );
+}
+
 export async function updateCurrentKm(vehicleId: number, currentKm: number): Promise<void> {
   const db = await getDb();
   await db.runAsync(
