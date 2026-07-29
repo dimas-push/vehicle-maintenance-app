@@ -1,7 +1,17 @@
 import type { ScheduleStatus } from "../types/models";
 
-const DUE_SOON_KM_THRESHOLD = 300;
-const DUE_SOON_DAYS_THRESHOLD = 14;
+export const DEFAULT_DUE_SOON_KM_THRESHOLD = 300;
+export const DEFAULT_DUE_SOON_DAYS_THRESHOLD = 14;
+
+export interface DueSoonThresholds {
+  kmThreshold: number;
+  daysThreshold: number;
+}
+
+export const DEFAULT_THRESHOLDS: DueSoonThresholds = {
+  kmThreshold: DEFAULT_DUE_SOON_KM_THRESHOLD,
+  daysThreshold: DEFAULT_DUE_SOON_DAYS_THRESHOLD,
+};
 
 export interface DueEstimateInput {
   intervalKm: number | null;
@@ -21,9 +31,14 @@ export interface DueEstimate {
 /**
  * Computes the km/date the next maintenance is due, then derives its status.
  * When an item has both a km interval AND a month interval (e.g. engine oil),
- * whichever is reached first determines the status.
+ * whichever is reached first determines the status. Thresholds control how
+ * far in advance (km or days) a schedule is flagged as "due soon" rather
+ * than "on track" — user-configurable via Settings.
  */
-export function estimateNextDue(input: DueEstimateInput): DueEstimate {
+export function estimateNextDue(
+  input: DueEstimateInput,
+  thresholds: DueSoonThresholds = DEFAULT_THRESHOLDS
+): DueEstimate {
   const { intervalKm, intervalMonths, lastDoneKm, lastDoneDate, currentKm, currentDate } = input;
 
   const dueKm = intervalKm != null ? (lastDoneKm ?? 0) + intervalKm : null;
@@ -36,26 +51,27 @@ export function estimateNextDue(input: DueEstimateInput): DueEstimate {
     dueDate = due.toISOString().slice(0, 10);
   }
 
-  const kmStatus = dueKm != null ? statusFromKm(dueKm, currentKm) : null;
-  const dateStatus = dueDate != null ? statusFromDate(dueDate, currentDate) : null;
+  const kmStatus = dueKm != null ? statusFromKm(dueKm, currentKm, thresholds.kmThreshold) : null;
+  const dateStatus =
+    dueDate != null ? statusFromDate(dueDate, currentDate, thresholds.daysThreshold) : null;
 
   const status = worstStatus([kmStatus, dateStatus]);
 
   return { dueKm, dueDate, status };
 }
 
-function statusFromKm(dueKm: number, currentKm: number): ScheduleStatus {
+function statusFromKm(dueKm: number, currentKm: number, kmThreshold: number): ScheduleStatus {
   const remaining = dueKm - currentKm;
   if (remaining <= 0) return "overdue";
-  if (remaining <= DUE_SOON_KM_THRESHOLD) return "due_soon";
+  if (remaining <= kmThreshold) return "due_soon";
   return "ontrack";
 }
 
-function statusFromDate(dueDateIso: string, currentDate: Date): ScheduleStatus {
+function statusFromDate(dueDateIso: string, currentDate: Date, daysThreshold: number): ScheduleStatus {
   const due = new Date(dueDateIso);
   const diffDays = Math.floor((due.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays <= 0) return "overdue";
-  if (diffDays <= DUE_SOON_DAYS_THRESHOLD) return "due_soon";
+  if (diffDays <= daysThreshold) return "due_soon";
   return "ontrack";
 }
 

@@ -1,6 +1,7 @@
 import { getDb } from "../db";
 import type { MaintenanceRecord, MaintenanceSchedule } from "../types/models";
 import { estimateNextDue } from "../utils/maintenanceCalculator";
+import { getReminderThresholds } from "../utils/reminderSettings";
 import { getVehicle } from "./vehicleRepository";
 
 export async function listSchedulesForVehicle(vehicleId: number): Promise<
@@ -38,6 +39,7 @@ export async function recalculateSchedules(vehicleId: number): Promise<void> {
 
   const now = new Date();
   const nowIso = now.toISOString();
+  const thresholds = await getReminderThresholds();
 
   await db.withTransactionAsync(async () => {
     for (const interval of intervals) {
@@ -49,14 +51,17 @@ export async function recalculateSchedules(vehicleId: number): Promise<void> {
         interval.maintenance_item_id
       );
 
-      const estimate = estimateNextDue({
-        intervalKm: interval.interval_km,
-        intervalMonths: interval.interval_months,
-        lastDoneKm: lastRecord?.done_at_km ?? null,
-        lastDoneDate: lastRecord?.done_at_date ?? null,
-        currentKm: vehicle.current_km,
-        currentDate: now,
-      });
+      const estimate = estimateNextDue(
+        {
+          intervalKm: interval.interval_km,
+          intervalMonths: interval.interval_months,
+          lastDoneKm: lastRecord?.done_at_km ?? null,
+          lastDoneDate: lastRecord?.done_at_date ?? null,
+          currentKm: vehicle.current_km,
+          currentDate: now,
+        },
+        thresholds
+      );
 
       await db.runAsync(
         `INSERT INTO maintenance_schedules
