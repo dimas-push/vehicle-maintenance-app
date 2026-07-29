@@ -3,7 +3,7 @@ export interface Brand {
   name: string;
 }
 
-export type VehicleCategory = "matic" | "bebek" | "sport" | "listrik";
+export type VehicleCategory = "scooter" | "underbone" | "sport" | "electric";
 
 export interface VehicleType {
   id: number;
@@ -62,6 +62,7 @@ export interface Reminder {
   id: number;
   vehicle_id: number;
   schedule_id: number;
-  notified_at: string | null;
+  notified_status: "due_soon" | "overdue";
+  notified_at: string;
   channel: "push" | "in_app";
 }

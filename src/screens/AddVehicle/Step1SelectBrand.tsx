@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
 import { listBrands } from "../../repositories/catalogRepository";
 import type { Brand } from "../../types/models";
 import type { AddVehicleStackParamList } from "./WizardContext";
+import WizardProgress from "../../components/WizardProgress";
+import { colors, radius, shadow, spacing, typography } from "../../theme";
 
 type Props = NativeStackScreenProps<AddVehicleStackParamList, "SelectBrand">;
 
@@ -16,18 +19,19 @@ export default function Step1SelectBrand({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Langkah 1 dari 3: Pilih Merek</Text>
+      <WizardProgress step={1} total={3} label="Select Brand" />
       <FlatList
         data={brands}
         keyExtractor={(b) => String(b.id)}
         renderItem={({ item }) => (
           <Pressable
-            style={styles.item}
+            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() =>
               navigation.navigate("SelectType", { brandId: item.id, brandName: item.name })
             }
           >
             <Text style={styles.itemText}>{item.name}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
           </Pressable>
         )}
       />
@@ -36,14 +40,17 @@ export default function Step1SelectBrand({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  title: { fontSize: 18, fontWeight: "600", marginBottom: 16 },
+  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
   item: {
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
+    ...shadow.card,
   },
-  itemText: { fontSize: 16 },
+  itemPressed: { backgroundColor: colors.primarySoft },
+  itemText: { ...typography.body, fontWeight: "600" },
 });

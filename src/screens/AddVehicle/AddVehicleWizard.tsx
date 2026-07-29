@@ -3,15 +3,25 @@ import Step1SelectBrand from "./Step1SelectBrand";
 import Step2SelectType from "./Step2SelectType";
 import Step3Details from "./Step3Details";
 import type { AddVehicleStackParamList } from "./WizardContext";
+import { colors } from "../../theme";
 
 const Stack = createNativeStackNavigator<AddVehicleStackParamList>();
 
 export default function AddVehicleWizard() {
   return (
-    <Stack.Navigator screenOptions={{ headerTitle: "Tambah Kendaraan" }}>
-      <Stack.Screen name="SelectBrand" component={Step1SelectBrand} options={{ headerTitle: "Pilih Merek" }} />
-      <Stack.Screen name="SelectType" component={Step2SelectType} options={{ headerTitle: "Pilih Tipe" }} />
-      <Stack.Screen name="Details" component={Step3Details} options={{ headerTitle: "Detail Kendaraan" }} />
+    <Stack.Navigator
+      screenOptions={{
+        // Step titles are already shown in WizardProgress within the content,
+        // the header just needs the back button.
+        headerTitle: "",
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.primary,
+        headerShadowVisible: false,
+      }}
+    >
+      <Stack.Screen name="SelectBrand" component={Step1SelectBrand} />
+      <Stack.Screen name="SelectType" component={Step2SelectType} />
+      <Stack.Screen name="Details" component={Step3Details} />
     </Stack.Navigator>
   );
 }

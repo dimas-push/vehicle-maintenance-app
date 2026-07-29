@@ -18,14 +18,14 @@ export async function listSchedulesForVehicle(vehicleId: number): Promise<
 }
 
 /**
- * Hitung ulang semua jadwal perawatan sebuah kendaraan berdasarkan interval
- * katalog dan riwayat terakhir, lalu simpan hasilnya. Dipanggil setelah km
- * di-update atau setelah sebuah perawatan dicatat selesai.
+ * Recalculates every maintenance schedule for a vehicle based on the catalog
+ * intervals and the latest service history, then saves the result. Called
+ * after the odometer is updated or after a maintenance task is marked done.
  */
 export async function recalculateSchedules(vehicleId: number): Promise<void> {
   const db = await getDb();
   const vehicle = await getVehicle(vehicleId);
-  if (!vehicle) throw new Error(`Kendaraan ${vehicleId} tidak ditemukan`);
+  if (!vehicle) throw new Error(`Vehicle ${vehicleId} not found`);
 
   const intervals = await db.getAllAsync<{
     maintenance_item_id: number;

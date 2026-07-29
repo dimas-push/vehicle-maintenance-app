@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createVehicle } from "../../repositories/vehicleRepository";
 import { recalculateSchedules } from "../../repositories/scheduleRepository";
+import { notifyDueSchedules } from "../../services/notifications";
 import type { AddVehicleStackParamList } from "./WizardContext";
-import { Pressable } from "react-native";
+import WizardProgress from "../../components/WizardProgress";
+import { colors, radius, shadow, spacing, typography } from "../../theme";
 
 type Props = NativeStackScreenProps<AddVehicleStackParamList, "Details">;
 
@@ -18,11 +21,11 @@ export default function Step3Details({ route, navigation }: Props) {
   async function handleSave() {
     const km = Number(currentKm);
     if (!nickname.trim()) {
-      Alert.alert("Nama kendaraan wajib diisi", "Contoh: \"Motor Ayah\" atau \"Vario Biru\"");
+      Alert.alert("Vehicle name is required", "Example: \"Dad's Bike\" or \"Blue Vario\"");
       return;
     }
     if (!Number.isFinite(km) || km < 0) {
-      Alert.alert("KM saat ini tidak valid", "Masukkan angka kilometer yang benar");
+      Alert.alert("Invalid odometer reading", "Please enter a valid number of kilometers");
       return;
     }
 
@@ -35,9 +38,10 @@ export default function Step3Details({ route, navigation }: Props) {
         current_km: km,
       });
       await recalculateSchedules(vehicle.id);
+      await notifyDueSchedules(vehicle.id);
       navigation.getParent()?.goBack();
     } catch (err) {
-      Alert.alert("Gagal menyimpan", String(err));
+      Alert.alert("Failed to save", String(err));
     } finally {
       setSaving(false);
     }
@@ -45,67 +49,95 @@ export default function Step3Details({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Langkah 3 dari 3: Detail Kendaraan</Text>
-      <Text style={styles.subtitle}>
-        {brandName} {vehicleTypeName}
-      </Text>
+      <WizardProgress step={3} total={3} label="Vehicle Details" />
 
-      <Text style={styles.label}>Nama kendaraan</Text>
+      <View style={styles.summary}>
+        <View style={styles.summaryIconWrap}>
+          <MaterialCommunityIcons name="motorbike" size={20} color={colors.primary} />
+        </View>
+        <Text style={styles.summaryText}>
+          {brandName} {vehicleTypeName}
+        </Text>
+      </View>
+
+      <Text style={styles.label}>Vehicle name</Text>
       <TextInput
         style={styles.input}
-        placeholder="Motor Ayah"
+        placeholder="Dad's Bike"
+        placeholderTextColor={colors.textSubtle}
         value={nickname}
         onChangeText={setNickname}
       />
 
-      <Text style={styles.label}>Nomor plat (opsional)</Text>
+      <Text style={styles.label}>License plate (optional)</Text>
       <TextInput
         style={styles.input}
-        placeholder="B 1234 XYZ"
+        placeholder="ABC-1234"
+        placeholderTextColor={colors.textSubtle}
         value={plateNumber}
         onChangeText={setPlateNumber}
         autoCapitalize="characters"
       />
 
-      <Text style={styles.label}>KM saat ini</Text>
+      <Text style={styles.label}>Current odometer (km)</Text>
       <TextInput
         style={styles.input}
         placeholder="12000"
+        placeholderTextColor={colors.textSubtle}
         value={currentKm}
         onChangeText={setCurrentKm}
         keyboardType="numeric"
       />
 
       <Pressable
-        style={[styles.button, saving && styles.buttonDisabled]}
+        style={({ pressed }) => [styles.button, (pressed || saving) && styles.buttonPressed]}
         onPress={handleSave}
         disabled={saving}
       >
-        <Text style={styles.buttonText}>{saving ? "Menyimpan..." : "Simpan Kendaraan"}</Text>
+        <Text style={styles.buttonText}>{saving ? "Saving..." : "Save Vehicle"}</Text>
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  title: { fontSize: 18, fontWeight: "600", marginBottom: 4 },
-  subtitle: { fontSize: 14, color: "#666", marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: "500", marginTop: 12, marginBottom: 4 },
+  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
+  summary: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  summaryIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.sm,
+  },
+  summaryText: { ...typography.body, fontWeight: "600", color: colors.primaryDark },
+  label: { ...typography.label, marginTop: spacing.sm, marginBottom: spacing.xs },
   input: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+    fontSize: 15,
+    color: colors.text,
+    ...shadow.card,
   },
   button: {
-    backgroundColor: "#2563eb",
-    borderRadius: 8,
-    padding: 14,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    padding: spacing.md - 2,
     alignItems: "center",
-    marginTop: 24,
+    marginTop: spacing.lg,
   },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  buttonPressed: { backgroundColor: colors.primaryDark, opacity: 0.9 },
+  buttonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

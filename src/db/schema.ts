@@ -1,7 +1,7 @@
 export const SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
 
--- Katalog: data referensi, diisi lewat seed, tidak diedit user
+-- Catalog: reference data, filled in via seed, not editable by the user
 CREATE TABLE IF NOT EXISTS brands (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS vehicle_types (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   brand_id INTEGER NOT NULL REFERENCES brands(id),
   name TEXT NOT NULL,
-  category TEXT NOT NULL CHECK (category IN ('matic', 'bebek', 'sport', 'listrik')),
+  category TEXT NOT NULL CHECK (category IN ('scooter', 'underbone', 'sport', 'electric')),
   UNIQUE (brand_id, name)
 );
 
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS maintenance_intervals (
   UNIQUE (vehicle_type_id, maintenance_item_id)
 );
 
--- Data pengguna
+-- User data
 CREATE TABLE IF NOT EXISTS vehicles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   vehicle_type_id INTEGER NOT NULL REFERENCES vehicle_types(id),
@@ -62,11 +62,15 @@ CREATE TABLE IF NOT EXISTS maintenance_schedules (
   UNIQUE (vehicle_id, maintenance_item_id)
 );
 
+-- One row per schedule: the most recent status we already sent a
+-- notification for, so recalculating schedules doesn't spam the same alert.
 CREATE TABLE IF NOT EXISTS reminders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
   schedule_id INTEGER NOT NULL REFERENCES maintenance_schedules(id) ON DELETE CASCADE,
-  notified_at TEXT,
-  channel TEXT NOT NULL CHECK (channel IN ('push', 'in_app'))
+  notified_status TEXT NOT NULL CHECK (notified_status IN ('due_soon', 'overdue')),
+  notified_at TEXT NOT NULL,
+  channel TEXT NOT NULL CHECK (channel IN ('push', 'in_app')),
+  UNIQUE (schedule_id)
 );
 `;

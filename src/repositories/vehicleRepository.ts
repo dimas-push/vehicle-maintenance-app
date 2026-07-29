@@ -36,7 +36,7 @@ export async function createVehicle(input: NewVehicleInput): Promise<Vehicle> {
   );
 
   const vehicle = await getVehicle(result.lastInsertRowId);
-  if (!vehicle) throw new Error("Gagal membuat kendaraan baru");
+  if (!vehicle) throw new Error("Failed to create the new vehicle");
   return vehicle;
 }
 

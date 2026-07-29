@@ -1,11 +1,11 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
 /**
- * Data katalog awal: 5 motor matic (disederhanakan dari rencana 23 model)
- * untuk mempercepat MVP. Interval perawatan di bawah adalah angka umum yang
- * dipakai lintas merek (bukan hasil riset per-model dengan confidence level) —
- * validasi ulang ke buku manual masing-masing sebelum dipakai sebagai acuan
- * final di laporan.
+ * Initial catalog data: 5 scooter models (trimmed down from a planned 23)
+ * to speed up the MVP. The maintenance intervals below are general figures
+ * used across brands (not per-model research with a confidence rating) —
+ * re-check them against each manufacturer's manual before citing them as a
+ * final reference in a report.
  */
 const BRANDS = ["Honda", "Yamaha"] as const;
 
@@ -18,30 +18,30 @@ const VEHICLE_TYPES: { brand: string; name: string }[] = [
 ];
 
 const MAINTENANCE_ITEMS: { name: string; description: string }[] = [
-  { name: "Oli mesin", description: "Ganti oli mesin" },
-  { name: "Oli gardan/CVT", description: "Ganti oli gardan (girboks CVT)" },
-  { name: "Busi", description: "Ganti atau cek busi" },
-  { name: "Filter udara", description: "Bersihkan/ganti filter udara" },
-  { name: "Aki", description: "Cek kondisi aki" },
-  { name: "Kampas rem depan", description: "Cek/ganti kampas rem depan" },
-  { name: "Kampas rem belakang", description: "Cek/ganti kampas rem belakang" },
-  { name: "Van belt (CVT)", description: "Ganti van belt CVT" },
-  { name: "Roller CVT", description: "Cek/ganti roller CVT" },
-  { name: "Ban", description: "Cek tekanan dan keausan ban" },
+  { name: "Engine oil", description: "Replace engine oil" },
+  { name: "CVT/gear oil", description: "Replace CVT gearbox oil" },
+  { name: "Spark plug", description: "Replace or inspect the spark plug" },
+  { name: "Air filter", description: "Clean or replace the air filter" },
+  { name: "Battery", description: "Check battery condition" },
+  { name: "Front brake pads", description: "Inspect or replace front brake pads" },
+  { name: "Rear brake pads", description: "Inspect or replace rear brake pads" },
+  { name: "CVT drive belt", description: "Replace the CVT drive belt" },
+  { name: "CVT rollers", description: "Inspect or replace CVT rollers" },
+  { name: "Tires", description: "Check tire pressure and tread wear" },
 ];
 
-// interval_km / interval_months generik untuk semua tipe matic (MVP)
+// Generic interval_km / interval_months for all scooter types (MVP)
 const GENERIC_INTERVALS: Record<string, { km: number | null; months: number | null }> = {
-  "Oli mesin": { km: 2000, months: 2 },
-  "Oli gardan/CVT": { km: 8000, months: 6 },
-  Busi: { km: 8000, months: 6 },
-  "Filter udara": { km: 8000, months: 6 },
-  Aki: { km: null, months: 24 },
-  "Kampas rem depan": { km: 10000, months: null },
-  "Kampas rem belakang": { km: 10000, months: null },
-  "Van belt (CVT)": { km: 24000, months: null },
-  "Roller CVT": { km: 24000, months: null },
-  Ban: { km: 20000, months: null },
+  "Engine oil": { km: 2000, months: 2 },
+  "CVT/gear oil": { km: 8000, months: 6 },
+  "Spark plug": { km: 8000, months: 6 },
+  "Air filter": { km: 8000, months: 6 },
+  Battery: { km: null, months: 24 },
+  "Front brake pads": { km: 10000, months: null },
+  "Rear brake pads": { km: 10000, months: null },
+  "CVT drive belt": { km: 24000, months: null },
+  "CVT rollers": { km: 24000, months: null },
+  Tires: { km: 20000, months: null },
 };
 
 export async function seedCatalog(db: SQLiteDatabase): Promise<void> {
@@ -60,7 +60,7 @@ export async function seedCatalog(db: SQLiteDatabase): Promise<void> {
       );
       if (!brandRow) continue;
       await db.runAsync(
-        "INSERT OR IGNORE INTO vehicle_types (brand_id, name, category) VALUES (?, ?, 'matic')",
+        "INSERT OR IGNORE INTO vehicle_types (brand_id, name, category) VALUES (?, ?, 'scooter')",
         brandRow.id,
         type.name
       );

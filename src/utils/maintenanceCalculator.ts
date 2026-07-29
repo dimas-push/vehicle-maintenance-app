@@ -19,9 +19,9 @@ export interface DueEstimate {
 }
 
 /**
- * Hitung km/tanggal jatuh tempo perawatan berikutnya, lalu tentukan status.
- * Kalau item punya interval km DAN bulan (mis. oli mesin), yang lebih dulu
- * tercapai yang menentukan status (whichever comes first).
+ * Computes the km/date the next maintenance is due, then derives its status.
+ * When an item has both a km interval AND a month interval (e.g. engine oil),
+ * whichever is reached first determines the status.
  */
 export function estimateNextDue(input: DueEstimateInput): DueEstimate {
   const { intervalKm, intervalMonths, lastDoneKm, lastDoneDate, currentKm, currentDate } = input;
