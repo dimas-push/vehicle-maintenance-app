@@ -1,19 +1,15 @@
-import { Pressable } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Ionicons } from "@expo/vector-icons";
-import VehicleListScreen from "../screens/VehicleListScreen";
+import VehicleTabs from "./VehicleTabs";
 import AddVehicleWizard from "../screens/AddVehicle/AddVehicleWizard";
 import VehicleDetailScreen from "../screens/VehicleDetail/VehicleDetailScreen";
 import MaintenanceHistoryScreen from "../screens/VehicleDetail/MaintenanceHistoryScreen";
-import SettingsScreen from "../screens/SettingsScreen";
 import { colors } from "../theme";
 
 export type RootStackParamList = {
-  VehicleList: undefined;
+  Tabs: undefined;
   AddVehicle: undefined;
   VehicleDetail: { vehicleId: number };
   MaintenanceHistory: { vehicleId: number; nickname: string };
-  Settings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -29,18 +25,7 @@ export default function RootNavigator() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen
-        name="VehicleList"
-        component={VehicleListScreen}
-        options={({ navigation }) => ({
-          headerTitle: "My Vehicles",
-          headerRight: () => (
-            <Pressable onPress={() => navigation.navigate("Settings")} hitSlop={8}>
-              <Ionicons name="settings-outline" size={22} color={colors.primary} />
-            </Pressable>
-          ),
-        })}
-      />
+      <Stack.Screen name="Tabs" component={VehicleTabs} options={{ headerShown: false }} />
       <Stack.Screen
         name="AddVehicle"
         component={AddVehicleWizard}
@@ -55,11 +40,6 @@ export default function RootNavigator() {
         name="MaintenanceHistory"
         component={MaintenanceHistoryScreen}
         options={({ route }) => ({ headerTitle: `${route.params.nickname} — History` })}
-      />
-      <Stack.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ headerTitle: "Settings" }}
       />
     </Stack.Navigator>
   );

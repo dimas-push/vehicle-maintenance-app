@@ -1,18 +1,24 @@
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import type { CompositeScreenProps } from "@react-navigation/native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { listVehicles } from "../repositories/vehicleRepository";
 import { listSchedulesForVehicle } from "../repositories/scheduleRepository";
 import type { ScheduleStatus, Vehicle } from "../types/models";
 import type { RootStackParamList } from "../navigation/RootNavigator";
+import type { VehicleTabsParamList } from "../navigation/VehicleTabs";
 import { colors, radius, shadow, spacing, typography } from "../theme";
 import { STATUS_LABEL, STATUS_STYLE, worstStatus } from "../utils/scheduleStatusPresentation";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
 import { formatDistance } from "../utils/units";
 
-type Props = NativeStackScreenProps<RootStackParamList, "VehicleList">;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<VehicleTabsParamList, "Vehicles">,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 async function worstStatusFor(vehicleId: number): Promise<ScheduleStatus | null> {
   const schedules = await listSchedulesForVehicle(vehicleId);
