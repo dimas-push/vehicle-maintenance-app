@@ -30,6 +30,25 @@ export async function initNotifications(): Promise<void> {
   }
 }
 
+export interface NotificationPermissionState {
+  granted: boolean;
+  canAskAgain: boolean;
+}
+
+/** Current permission state with no user-facing side effects — safe to call on every screen focus. */
+export async function getNotificationPermissionState(): Promise<NotificationPermissionState> {
+  if (Platform.OS === "web") return { granted: false, canAskAgain: false };
+  const { granted, canAskAgain } = await Notifications.getPermissionsAsync();
+  return { granted, canAskAgain };
+}
+
+/** Prompts the OS permission dialog. Only works while canAskAgain is still true. */
+export async function requestNotificationPermission(): Promise<NotificationPermissionState> {
+  if (Platform.OS === "web") return { granted: false, canAskAgain: false };
+  const { granted, canAskAgain } = await Notifications.requestPermissionsAsync();
+  return { granted, canAskAgain };
+}
+
 interface DueScheduleRow {
   id: number;
   vehicle_id: number;

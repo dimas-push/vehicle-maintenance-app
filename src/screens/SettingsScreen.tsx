@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import type { CompositeScreenProps } from "@react-navigation/native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -9,7 +10,12 @@ import { type DistanceUnit, type VolumeUnit, displayToKm, kmToDisplay } from "..
 import { getReminderThresholds, setReminderThresholds } from "../utils/reminderSettings";
 import { listVehicles } from "../repositories/vehicleRepository";
 import { recalculateSchedules } from "../repositories/scheduleRepository";
-import { notifyDueSchedules } from "../services/notifications";
+import {
+  getNotificationPermissionState,
+  notifyDueSchedules,
+  requestNotificationPermission,
+  type NotificationPermissionState,
+} from "../services/notifications";
 import { exportBackup, importBackup } from "../services/backup";
 import { showErrorAlert } from "../utils/errorAlert";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -38,6 +44,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermissionState | null>(null);
 
   useEffect(() => {
     getReminderThresholds().then(({ kmThreshold, daysThreshold }) => {
@@ -45,6 +52,29 @@ export default function SettingsScreen({ navigation }: Props) {
       setDaysInput(String(daysThreshold));
     });
   }, [unit]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Re-check on every focus — the user may have just come back from the
+      // system Settings app after changing the permission there.
+      if (Platform.OS !== "web") getNotificationPermissionState().then(setNotifPermission);
+    }, [])
+  );
+
+  async function handleEnableNotifications() {
+    const result = await requestNotificationPermission();
+    setNotifPermission(result);
+    if (!result.granted && !result.canAskAgain) {
+      Alert.alert(
+        "Notifications are off",
+        "You can enable them from your device settings.",
+        [
+          { text: "Not Now", style: "cancel" },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
+        ]
+      );
+    }
+  }
 
   async function handleSaveThresholds() {
     const kmValue = Number(kmInput);
@@ -141,6 +171,33 @@ export default function SettingsScreen({ navigation }: Props) {
           </Pressable>
         );
       })}
+
+      {notifPermission && (
+        <>
+          <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Notifications</Text>
+          <View style={styles.card}>
+            {notifPermission.granted ? (
+              <View style={styles.notifRow}>
+                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                <Text style={styles.notifStatusText}>Enabled — you'll get reminders when service is due.</Text>
+              </View>
+            ) : (
+              <>
+                <View style={styles.notifRow}>
+                  <Ionicons name="notifications-off-outline" size={20} color={colors.warning} />
+                  <Text style={styles.notifStatusText}>
+                    Off — reminders won't show up until you turn notifications on.
+                  </Text>
+                </View>
+                <Pressable style={styles.outlineButton} onPress={handleEnableNotifications}>
+                  <Ionicons name="notifications-outline" size={18} color={colors.primary} />
+                  <Text style={styles.outlineButtonText}>Enable Notifications</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </>
+      )}
 
       <Text style={[styles.sectionTitle, styles.sectionSpacing]}>Reminder Sensitivity</Text>
       <View style={styles.card}>
@@ -244,6 +301,8 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   cardHint: { ...typography.caption, marginBottom: spacing.sm },
+  notifRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
+  notifStatusText: { ...typography.body, flex: 1 },
   label: { ...typography.label, marginTop: spacing.sm, marginBottom: spacing.xs },
   input: {
     borderWidth: 1,

@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Directory, File, Paths } from "expo-file-system";
+import { PermissionDeniedError } from "../utils/errorAlert";
 
 const PHOTOS_DIR_NAME = "vehicle-photos";
 
@@ -42,13 +43,17 @@ const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
 
 export async function pickVehiclePhotoFromLibrary(): Promise<string | null> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) throw new Error("Photo library permission was denied.");
+  if (!permission.granted) {
+    throw new PermissionDeniedError("Photo library permission was denied.", permission.canAskAgain);
+  }
   return launch(() => ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS));
 }
 
 export async function takeVehiclePhoto(): Promise<string | null> {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
-  if (!permission.granted) throw new Error("Camera permission was denied.");
+  if (!permission.granted) {
+    throw new PermissionDeniedError("Camera permission was denied.", permission.canAskAgain);
+  }
   return launch(() => ImagePicker.launchCameraAsync(PICKER_OPTIONS));
 }
 
