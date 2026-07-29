@@ -53,7 +53,7 @@ const VOLUME_OPTIONS: { value: VolumeUnit; label: string; hint: string }[] = [
 
 export default function SettingsScreen({ navigation }: Props) {
   const { unit, setUnit, volumeUnit, setVolumeUnit } = useUnitPreference();
-  const { user, signOut } = useAuth();
+  const { user, isGuest, signOut, returnToLogin } = useAuth();
   const [kmInput, setKmInput] = useState("");
   const [daysInput, setDaysInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -207,14 +207,23 @@ export default function SettingsScreen({ navigation }: Props) {
         </Pressable>
       )}
 
-      {user && (
+      {(user || isGuest) && (
         <>
           <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.card}>
-            <Text style={styles.cardHint}>Signed in as {user.email}</Text>
-            <Pressable style={styles.outlineButton} onPress={handleSignOut}>
-              <Ionicons name="log-out-outline" size={18} color={colors.primary} />
-              <Text style={styles.outlineButtonText}>Log Out</Text>
+            <Text style={styles.cardHint}>
+              {user ? `Signed in as ${user.email}` : "Not signed in — vehicle data still stays on this device."}
+            </Text>
+            <Pressable
+              style={styles.outlineButton}
+              onPress={user ? handleSignOut : returnToLogin}
+            >
+              <Ionicons
+                name={user ? "log-out-outline" : "log-in-outline"}
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={styles.outlineButtonText}>{user ? "Log Out" : "Log In"}</Text>
             </Pressable>
           </View>
         </>

@@ -7,7 +7,7 @@ import AuthNavigator from "./AuthNavigator";
 import { colors, spacing, typography } from "../theme";
 
 export default function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, isGuest } = useAuth();
 
   if (!isFirebaseConfigured) {
     return (
@@ -30,7 +30,7 @@ export default function AppNavigator() {
     );
   }
 
-  return user ? <RootNavigator /> : <AuthNavigator />;
+  return user || isGuest ? <RootNavigator /> : <AuthNavigator />;
 }
 
 const styles = StyleSheet.create({

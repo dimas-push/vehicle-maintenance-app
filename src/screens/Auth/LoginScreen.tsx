@@ -10,7 +10,7 @@ import { colors, radius, shadow, spacing, typography } from "../../theme";
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
 export default function LoginScreen({ navigation }: Props) {
-  const { signIn } = useAuth();
+  const { signIn, continueAsGuest } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -67,6 +67,13 @@ export default function LoginScreen({ navigation }: Props) {
       <Pressable style={styles.linkWrap} onPress={() => navigation.navigate("SignUp")}>
         <Text style={styles.linkText}>Don't have an account? Sign up</Text>
       </Pressable>
+
+      <Pressable style={styles.linkWrap} onPress={continueAsGuest}>
+        <Text style={styles.guestLinkText}>Continue without an account</Text>
+      </Pressable>
+      <Text style={styles.guestHint}>
+        Your vehicle data stays on this device either way — an account isn't required to use the app.
+      </Text>
     </View>
   );
 }
@@ -98,4 +105,6 @@ const styles = StyleSheet.create({
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   linkWrap: { marginTop: spacing.md, alignItems: "center" },
   linkText: { color: colors.primary, fontWeight: "600" },
+  guestLinkText: { color: colors.textMuted, fontWeight: "600" },
+  guestHint: { ...typography.caption, textAlign: "center", marginTop: spacing.sm },
 });
