@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useState } from "react";
-import { Alert, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -397,7 +397,9 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   }
 
   if (!vehicle) return null;
-  const specsLine = formatVehicleSpecs(vehicle);
+  const metaLine = [vehicle.plate_number, vehicle.vin ? `VIN ${vehicle.vin}` : null, formatVehicleSpecs(vehicle) || null]
+    .filter((part): part is string => !!part)
+    .join(" · ");
 
   return (
     <View style={styles.container}>
@@ -414,9 +416,11 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           </Pressable>
           <View style={styles.topRowText}>
             <Text style={styles.nickname}>{vehicle.nickname}</Text>
-            {vehicle.plate_number && <Text style={styles.plate}>{vehicle.plate_number}</Text>}
-            {vehicle.vin && <Text style={styles.plate}>VIN {vehicle.vin}</Text>}
-            {specsLine !== "" && <Text style={styles.plate}>{specsLine}</Text>}
+            {metaLine !== "" && (
+              <Text style={styles.plate} numberOfLines={1}>
+                {metaLine}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -431,43 +435,47 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
 
-        <Pressable
-          style={styles.historyLink}
-          onPress={() =>
-            navigation.navigate("MaintenanceHistory", { vehicleId, nickname: vehicle.nickname })
-          }
-        >
-          <Ionicons name="time-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.historyLinkText}>View Service History</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-        </Pressable>
+        <View style={styles.quickActions}>
+          <Pressable
+            style={styles.quickAction}
+            onPress={() => navigation.navigate("MaintenanceHistory", { vehicleId, nickname: vehicle.nickname })}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons name="time-outline" size={19} color={colors.primary} />
+            </View>
+            <Text style={styles.quickActionLabel}>History</Text>
+          </Pressable>
 
-        <Pressable
-          style={[styles.historyLink, styles.noBorderTop]}
-          onPress={() => navigation.navigate("FuelLog", { vehicleId, nickname: vehicle.nickname })}
-        >
-          <Ionicons name="water-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.historyLinkText}>View Fuel Log</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-        </Pressable>
+          <Pressable
+            style={styles.quickAction}
+            onPress={() => navigation.navigate("FuelLog", { vehicleId, nickname: vehicle.nickname })}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons name="water-outline" size={19} color={colors.primary} />
+            </View>
+            <Text style={styles.quickActionLabel}>Fuel</Text>
+          </Pressable>
 
-        <Pressable
-          style={[styles.historyLink, styles.noBorderTop]}
-          onPress={() => navigation.navigate("ExpenseLog", { vehicleId, nickname: vehicle.nickname })}
-        >
-          <Ionicons name="wallet-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.historyLinkText}>View Other Expenses</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-        </Pressable>
+          <Pressable
+            style={styles.quickAction}
+            onPress={() => navigation.navigate("ExpenseLog", { vehicleId, nickname: vehicle.nickname })}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons name="wallet-outline" size={19} color={colors.primary} />
+            </View>
+            <Text style={styles.quickActionLabel}>Expenses</Text>
+          </Pressable>
 
-        <Pressable
-          style={[styles.historyLink, styles.noBorderTop]}
-          onPress={() => navigation.navigate("VehicleStats", { vehicleId, nickname: vehicle.nickname })}
-        >
-          <Ionicons name="stats-chart-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.historyLinkText}>View Cost & Economy Trends</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-        </Pressable>
+          <Pressable
+            style={styles.quickAction}
+            onPress={() => navigation.navigate("VehicleStats", { vehicleId, nickname: vehicle.nickname })}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons name="stats-chart-outline" size={19} color={colors.primary} />
+            </View>
+            <Text style={styles.quickActionLabel}>Trends</Text>
+          </Pressable>
+        </View>
       </View>
 
       <FlatList
@@ -476,120 +484,133 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
-            <View style={styles.documentsHeader}>
-              <Text style={styles.sectionTitle}>Recalls</Text>
-              <Pressable
-                onPress={handleCheckRecalls}
-                hitSlop={8}
-                disabled={checkingRecalls}
-                accessibilityRole="button"
-                accessibilityLabel="Check for recalls"
-              >
-                <Ionicons name="refresh-outline" size={20} color={colors.primary} />
-              </Pressable>
-            </View>
-            {checkingRecalls ? (
-              <Text style={styles.emptyDocsText}>Checking NHTSA for open recalls...</Text>
-            ) : vehicle.recalls_checked_at == null ? (
-              <Text style={styles.emptyDocsText}>
-                Tap the refresh icon to check NHTSA for open recalls (US data only, needs the vehicle's year).
-              </Text>
-            ) : recalls.length === 0 ? (
-              <Text style={styles.emptyDocsText}>
-                No open recalls found. Checked {formatDueDate(vehicle.recalls_checked_at)}.
-              </Text>
-            ) : (
-              recalls.map((r) => (
-                <View key={r.id} style={styles.recallCard}>
-                  <View style={styles.recallHeader}>
-                    <Text style={styles.docLabel}>{r.component}</Text>
-                    <View style={[styles.badge, { backgroundColor: colors.dangerSoft }]}>
-                      <Text style={[styles.badgeText, { color: colors.danger }]}>Open Recall</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.docExpiry}>{r.summary}</Text>
-                </View>
-              ))
-            )}
-
-            <View style={[styles.documentsHeader, styles.scheduleTitle]}>
-              <Text style={styles.sectionTitle}>Documents</Text>
-              <Pressable
-                onPress={() => setDocumentModalVisible(true)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Add document"
-              >
-                <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-              </Pressable>
-            </View>
-            {documents.length === 0 ? (
-              <Text style={styles.emptyDocsText}>
-                No tax, insurance, or registration reminders yet.
-              </Text>
-            ) : (
-              documents.map((doc) => {
-                const status = statusFromExpiry(doc.expiry_date, daysThreshold);
-                const statusStyle = STATUS_STYLE[status];
-                return (
+            {recalls.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionLabel}>Open Recalls</Text>
                   <Pressable
-                    key={doc.id}
-                    style={styles.docRow}
-                    onPress={() => confirmDeleteDocument(doc)}
+                    onPress={handleCheckRecalls}
+                    hitSlop={8}
+                    disabled={checkingRecalls}
+                    accessibilityRole="button"
+                    accessibilityLabel="Check for recalls"
                   >
-                    <View style={styles.docRowText}>
-                      <Text style={styles.docLabel}>
-                        {doc.label} · {DOCUMENT_TYPE_LABEL[doc.document_type]}
-                      </Text>
-                      <Text style={styles.docExpiry}>Expires {formatDueDate(doc.expiry_date)}</Text>
-                    </View>
-                    <View style={[styles.badge, { backgroundColor: statusStyle.bg }]}>
-                      <Text style={[styles.badgeText, { color: statusStyle.fg }]}>
-                        {STATUS_LABEL[status]}
-                      </Text>
-                    </View>
+                    <Ionicons name="refresh-outline" size={18} color={colors.primary} />
                   </Pressable>
-                );
-              })
+                </View>
+                {recalls.map((r) => (
+                  <View key={r.id} style={styles.recallCard}>
+                    <View style={styles.recallHeader}>
+                      <Text style={styles.docLabel}>{r.component}</Text>
+                      <View style={[styles.badge, { backgroundColor: colors.danger }]}>
+                        <Text style={[styles.badgeText, { color: "#fff" }]}>Open Recall</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.docExpiry}>{r.summary}</Text>
+                  </View>
+                ))}
+              </View>
             )}
 
-            <View style={styles.documentsHeader}>
-              <Text style={[styles.sectionTitle, styles.scheduleTitle]}>Loan</Text>
-              {!loan && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionLabelRow}>
+                  <Text style={styles.sectionLabel}>Documents</Text>
+                  {recalls.length === 0 && (
+                    <Pressable
+                      onPress={handleCheckRecalls}
+                      hitSlop={8}
+                      disabled={checkingRecalls}
+                      accessibilityRole="button"
+                      accessibilityLabel="Check for recalls"
+                      style={styles.inlineRecallCheck}
+                    >
+                      <Ionicons name="shield-checkmark-outline" size={13} color={colors.textSubtle} />
+                      <Text style={styles.inlineRecallCheckText}>
+                        {checkingRecalls
+                          ? "Checking recalls…"
+                          : vehicle.recalls_checked_at == null
+                            ? "Check for recalls"
+                            : `No recalls · checked ${formatDueDate(vehicle.recalls_checked_at)}`}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
                 <Pressable
-                  onPress={() => setLoanModalVisible(true)}
+                  onPress={() => setDocumentModalVisible(true)}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Add loan"
+                  accessibilityLabel="Add document"
                 >
-                  <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                  <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
                 </Pressable>
+              </View>
+              {documents.length === 0 ? (
+                <Text style={styles.emptyHint}>No tax, insurance, or registration reminders yet.</Text>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                  {documents.map((doc) => {
+                    const status = statusFromExpiry(doc.expiry_date, daysThreshold);
+                    const statusStyle = STATUS_STYLE[status];
+                    return (
+                      <Pressable
+                        key={doc.id}
+                        style={[styles.docChip, { borderColor: statusStyle.fg }]}
+                        onPress={() => confirmDeleteDocument(doc)}
+                      >
+                        <Text style={styles.docChipLabel} numberOfLines={1}>
+                          {doc.label}
+                        </Text>
+                        <Text style={[styles.docChipStatus, { color: statusStyle.fg }]}>
+                          {STATUS_LABEL[status]} · {formatDueDate(doc.expiry_date)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
               )}
             </View>
-            {loan ? (
-              (() => {
-                const summary = summarizeLoan(loan);
-                return (
-                  <Pressable style={styles.loanCard} onPress={() => setLoanModalVisible(true)}>
-                    <View style={styles.docRowText}>
-                      <Text style={styles.docLabel}>
-                        {loan.lender || "Loan"} · {loan.monthly_payment.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
-                      </Text>
-                      <Text style={styles.docExpiry}>
-                        {summary.isPaidOff
-                          ? "Paid off"
-                          : `${summary.monthsRemaining} month(s) left • payoff ${formatDueDate(summary.payoffDate)}`}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-                  </Pressable>
-                );
-              })()
-            ) : (
-              <Text style={styles.emptyDocsText}>No loan on file for this vehicle.</Text>
-            )}
 
-            <Text style={[styles.sectionTitle, styles.scheduleTitle]}>Maintenance Schedule</Text>
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionLabel}>Loan</Text>
+                {!loan && (
+                  <Pressable
+                    onPress={() => setLoanModalVisible(true)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add loan"
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                  </Pressable>
+                )}
+              </View>
+              {loan ? (
+                (() => {
+                  const summary = summarizeLoan(loan);
+                  return (
+                    <Pressable style={styles.loanCard} onPress={() => setLoanModalVisible(true)}>
+                      <View style={styles.docRowText}>
+                        <Text style={styles.docLabel}>
+                          {loan.lender || "Loan"} ·{" "}
+                          {loan.monthly_payment.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
+                        </Text>
+                        <Text style={styles.docExpiry}>
+                          {summary.isPaidOff
+                            ? "Paid off"
+                            : `${summary.monthsRemaining} month(s) left · payoff ${formatDueDate(summary.payoffDate)}`}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+                    </Pressable>
+                  );
+                })()
+              ) : (
+                <Text style={styles.emptyHint}>No loan on file for this vehicle.</Text>
+              )}
+            </View>
+
+            <Text style={[styles.sectionLabel, styles.scheduleTitle]}>Maintenance Schedule</Text>
           </>
         }
         renderItem={({ item }) => {
@@ -708,17 +729,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   kmValue: { fontSize: 22, fontWeight: "700", color: colors.text, marginTop: 2 },
-  historyLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  historyLinkText: { ...typography.caption, color: colors.textMuted, flex: 1 },
-  noBorderTop: { borderTopWidth: 0, marginTop: 0, paddingTop: 0 },
   kmButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -729,36 +739,62 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   kmButtonText: { color: colors.primaryDark, fontWeight: "700", fontSize: 13 },
+  quickActions: {
+    flexDirection: "row",
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  quickAction: { flex: 1, alignItems: "center", gap: 4, paddingVertical: spacing.xs },
+  quickActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickActionLabel: { fontSize: 11, fontWeight: "600", color: colors.textMuted },
   listContent: { padding: spacing.md, paddingBottom: spacing.xl },
-  sectionTitle: { ...typography.label },
-  scheduleTitle: { marginTop: spacing.md, marginBottom: spacing.sm },
-  documentsHeader: {
+  section: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadow.card,
+  },
+  sectionLabel: { ...typography.label },
+  scheduleTitle: { marginTop: spacing.xs, marginBottom: spacing.sm },
+  sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: spacing.sm,
   },
-  emptyDocsText: { ...typography.caption, marginBottom: spacing.sm },
-  docRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surface,
+  sectionLabelRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flex: 1 },
+  inlineRecallCheck: { flexDirection: "row", alignItems: "center", gap: 4 },
+  inlineRecallCheckText: { ...typography.caption, color: colors.textSubtle },
+  emptyHint: { ...typography.caption },
+  chipRow: { flexDirection: "row", gap: spacing.sm, paddingRight: spacing.md },
+  docChip: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
     borderRadius: radius.md,
-    padding: spacing.sm + 4,
-    marginBottom: spacing.xs,
-    ...shadow.card,
+    padding: spacing.sm,
+    minWidth: 140,
+    maxWidth: 180,
   },
+  docChipLabel: { ...typography.body, fontWeight: "700", fontSize: 13 },
+  docChipStatus: { fontSize: 11, fontWeight: "600", marginTop: 2 },
   docRowText: { flex: 1 },
   docLabel: { ...typography.body, fontWeight: "700", fontSize: 14 },
   docExpiry: { ...typography.caption, marginTop: 2 },
   recallCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.dangerSoft,
     borderRadius: radius.md,
     padding: spacing.sm + 4,
     marginBottom: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.dangerSoft,
-    ...shadow.card,
   },
   recallHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
   card: {
@@ -787,10 +823,8 @@ const styles = StyleSheet.create({
   loanCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderRadius: radius.md,
     padding: spacing.sm + 4,
-    marginBottom: spacing.xs,
-    ...shadow.card,
   },
 });
