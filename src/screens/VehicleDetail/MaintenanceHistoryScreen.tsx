@@ -9,6 +9,7 @@ import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
 import { formatDistance } from "../../utils/units";
+import { showErrorAlert } from "../../utils/errorAlert";
 
 type Props = NativeStackScreenProps<RootStackParamList, "MaintenanceHistory">;
 type RecordRow = MaintenanceRecord & { item_name: string; shop_name: string | null };
@@ -24,7 +25,9 @@ export default function MaintenanceHistoryScreen({ route }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      listMaintenanceRecords(vehicleId).then(setRecords);
+      listMaintenanceRecords(vehicleId)
+        .then(setRecords)
+        .catch((err) => showErrorAlert("Couldn't load service history", err));
     }, [vehicleId])
   );
 

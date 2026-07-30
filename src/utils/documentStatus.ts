@@ -1,4 +1,4 @@
-import type { ScheduleStatus } from "../types/models";
+import type { DocumentType, ScheduleStatus } from "../types/models";
 
 /** Pure date-based status — same day threshold as maintenance schedules, no km component. */
 export function statusFromExpiry(expiryDateIso: string, daysThreshold: number, now = new Date()): ScheduleStatus {
@@ -9,7 +9,7 @@ export function statusFromExpiry(expiryDateIso: string, daysThreshold: number, n
   return "ontrack";
 }
 
-export const DOCUMENT_TYPE_LABEL: Record<string, string> = {
+export const DOCUMENT_TYPE_LABEL: Record<DocumentType, string> = {
   tax: "Tax",
   insurance: "Insurance",
   registration: "Registration",

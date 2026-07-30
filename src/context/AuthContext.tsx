@@ -43,10 +43,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loading = !authResolved || !guestResolved;
 
   useEffect(() => {
-    AsyncStorage.getItem(GUEST_MODE_KEY).then((value) => {
-      setIsGuest(value === "true");
-      setGuestResolved(true);
-    });
+    // AppNavigator stays on a loading spinner until guestResolved flips to
+    // true — a rejected read here without a .catch would leave it stuck
+    // forever (the same hang class the web SQLite bug hit), so the flag
+    // still needs to be set even if the read fails.
+    AsyncStorage.getItem(GUEST_MODE_KEY)
+      .then((value) => setIsGuest(value === "true"))
+      .catch(() => {})
+      .finally(() => setGuestResolved(true));
   }, []);
 
   useEffect(() => {

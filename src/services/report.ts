@@ -15,8 +15,23 @@ import { formatVehicleSpecs } from "../utils/vehicleSpecs";
 import { getOwnerProfile } from "../utils/ownerProfile";
 
 function csvEscape(value: string | number | null): string {
-  const s = value == null ? "" : String(value);
+  let s = value == null ? "" : String(value);
+  // Guard against formula injection: if this CSV is later opened in a
+  // spreadsheet app, a cell starting with one of these is executed as a
+  // formula rather than shown as text.
+  if (/^[=+\-@]/.test(s)) s = `'${s}`;
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Escapes text interpolated into the PDF report's HTML — user-entered notes/names shouldn't be able to break the table markup. */
+function escapeHtml(value: string | number | null | undefined): string {
+  if (value == null) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 async function reportFileBaseName(vehicleId: number): Promise<string> {
@@ -83,11 +98,11 @@ export async function exportServiceReportPdf(
   const recordRows = records
     .map(
       (r) => `<tr>
-        <td>${r.done_at_date}</td>
-        <td>${r.item_name}</td>
-        <td>${formatDistance(r.done_at_km, unit)}</td>
+        <td>${escapeHtml(r.done_at_date)}</td>
+        <td>${escapeHtml(r.item_name)}</td>
+        <td>${escapeHtml(formatDistance(r.done_at_km, unit))}</td>
         <td>${r.cost != null ? r.cost.toFixed(2) : "—"}</td>
-        <td>${r.notes ?? ""}</td>
+        <td>${escapeHtml(r.notes)}</td>
       </tr>`
     )
     .join("");
@@ -95,9 +110,9 @@ export async function exportServiceReportPdf(
   const fuelRows = fuelLogs
     .map(
       (f) => `<tr>
-        <td>${f.filled_at_date}</td>
-        <td>${formatDistance(f.filled_at_km, unit)}</td>
-        <td>${formatVolume(f.volume_liters, volumeUnit)}</td>
+        <td>${escapeHtml(f.filled_at_date)}</td>
+        <td>${escapeHtml(formatDistance(f.filled_at_km, unit))}</td>
+        <td>${escapeHtml(formatVolume(f.volume_liters, volumeUnit))}</td>
         <td>${f.cost != null ? f.cost.toFixed(2) : "—"}</td>
         <td>${f.full_tank ? "Full" : "Partial"}</td>
       </tr>`
@@ -107,9 +122,9 @@ export async function exportServiceReportPdf(
   const documentRows = documents
     .map(
       (d) => `<tr>
-        <td>${DOCUMENT_TYPE_LABEL[d.document_type]}</td>
-        <td>${d.label}</td>
-        <td>${d.expiry_date}</td>
+        <td>${escapeHtml(DOCUMENT_TYPE_LABEL[d.document_type])}</td>
+        <td>${escapeHtml(d.label)}</td>
+        <td>${escapeHtml(d.expiry_date)}</td>
       </tr>`
     )
     .join("");
@@ -117,10 +132,10 @@ export async function exportServiceReportPdf(
   const expenseRows = expenses
     .map(
       (e) => `<tr>
-        <td>${e.expense_date}</td>
-        <td>${EXPENSE_CATEGORY_LABEL[e.category]}</td>
+        <td>${escapeHtml(e.expense_date)}</td>
+        <td>${escapeHtml(EXPENSE_CATEGORY_LABEL[e.category])}</td>
         <td>${e.amount.toFixed(2)}</td>
-        <td>${e.notes ?? ""}</td>
+        <td>${escapeHtml(e.notes)}</td>
       </tr>`
     )
     .join("");
@@ -142,16 +157,16 @@ export async function exportServiceReportPdf(
         </style>
       </head>
       <body>
-        <h1>${vehicle.nickname}</h1>
+        <h1>${escapeHtml(vehicle.nickname)}</h1>
         <div class="subtitle">
-          ${typeInfo ? `${typeInfo.brandName} ${typeInfo.typeName}` : ""}
-          ${vehicle.plate_number ? ` • ${vehicle.plate_number}` : ""}
-          ${vehicle.vin ? ` • VIN ${vehicle.vin}` : ""}
+          ${typeInfo ? escapeHtml(`${typeInfo.brandName} ${typeInfo.typeName}`) : ""}
+          ${vehicle.plate_number ? ` • ${escapeHtml(vehicle.plate_number)}` : ""}
+          ${vehicle.vin ? ` • VIN ${escapeHtml(vehicle.vin)}` : ""}
         </div>
-        ${specsLine ? `<div class="subtitle">${specsLine}</div>` : ""}
-        <div class="subtitle">Current odometer: ${formatDistance(vehicle.current_km, unit)}</div>
+        ${specsLine ? `<div class="subtitle">${escapeHtml(specsLine)}</div>` : ""}
+        <div class="subtitle">Current odometer: ${escapeHtml(formatDistance(vehicle.current_km, unit))}</div>
         <div class="subtitle">Report generated ${new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}</div>
-        ${ownerProfile.name ? `<div class="subtitle">Prepared by ${ownerProfile.name}</div>` : ""}
+        ${ownerProfile.name ? `<div class="subtitle">Prepared by ${escapeHtml(ownerProfile.name)}</div>` : ""}
 
         <h2>Service History</h2>
         ${records.length === 0 ? '<p class="empty">No service records.</p>' : `

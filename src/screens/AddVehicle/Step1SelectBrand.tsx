@@ -6,6 +6,7 @@ import { listBrandsByClass } from "../../repositories/catalogRepository";
 import type { Brand } from "../../types/models";
 import type { AddVehicleStackParamList } from "./WizardContext";
 import WizardProgress from "../../components/WizardProgress";
+import { showErrorAlert } from "../../utils/errorAlert";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 
 type Props = NativeStackScreenProps<AddVehicleStackParamList, "SelectBrand">;
@@ -15,7 +16,9 @@ export default function Step1SelectBrand({ route, navigation }: Props) {
   const [brands, setBrands] = useState<Brand[]>([]);
 
   useEffect(() => {
-    listBrandsByClass(vehicleClass).then(setBrands);
+    listBrandsByClass(vehicleClass)
+      .then(setBrands)
+      .catch((err) => showErrorAlert("Couldn't load brands", err));
   }, [vehicleClass]);
 
   return (

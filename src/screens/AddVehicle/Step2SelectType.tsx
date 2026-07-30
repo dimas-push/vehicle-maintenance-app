@@ -6,6 +6,7 @@ import { listVehicleTypesByBrand } from "../../repositories/catalogRepository";
 import type { VehicleType } from "../../types/models";
 import type { AddVehicleStackParamList } from "./WizardContext";
 import WizardProgress from "../../components/WizardProgress";
+import { showErrorAlert } from "../../utils/errorAlert";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 
 type Props = NativeStackScreenProps<AddVehicleStackParamList, "SelectType">;
@@ -15,7 +16,9 @@ export default function Step2SelectType({ route, navigation }: Props) {
   const [types, setTypes] = useState<VehicleType[]>([]);
 
   useEffect(() => {
-    listVehicleTypesByBrand(brandId, vehicleClass).then(setTypes);
+    listVehicleTypesByBrand(brandId, vehicleClass)
+      .then(setTypes)
+      .catch((err) => showErrorAlert("Couldn't load models", err));
   }, [brandId, vehicleClass]);
 
   return (

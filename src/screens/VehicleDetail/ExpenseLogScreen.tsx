@@ -9,6 +9,7 @@ import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 import { EXPENSE_CATEGORY_LABEL } from "../../utils/expenseCategory";
 import { showErrorAlert } from "../../utils/errorAlert";
+import { deleteVehiclePhoto } from "../../services/photos";
 import AddExpenseModal from "./AddExpenseModal";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ExpenseLog">;
@@ -23,7 +24,9 @@ export default function ExpenseLogScreen({ route }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
 
   const reload = useCallback(() => {
-    listExpensesForVehicle(vehicleId).then(setExpenses);
+    listExpensesForVehicle(vehicleId)
+      .then(setExpenses)
+      .catch((err) => showErrorAlert("Couldn't load expenses", err));
   }, [vehicleId]);
 
   useFocusEffect(
@@ -57,6 +60,7 @@ export default function ExpenseLogScreen({ route }: Props) {
         onPress: async () => {
           try {
             await deleteExpense(expense.id);
+            deleteVehiclePhoto(expense.photo_uri);
             reload();
           } catch (err) {
             showErrorAlert("Couldn't delete expense", err);

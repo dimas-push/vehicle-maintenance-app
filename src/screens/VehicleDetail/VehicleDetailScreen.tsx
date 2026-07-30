@@ -12,6 +12,7 @@ import {
 } from "../../repositories/vehicleRepository";
 import type { VehicleWithClass } from "../../repositories/vehicleRepository";
 import {
+  listMaintenanceRecords,
   listSchedulesForVehicle,
   recalculateSchedules,
   recordMaintenanceDone,
@@ -21,11 +22,12 @@ import {
   deleteDocument,
   listDocumentsForVehicle,
 } from "../../repositories/documentRepository";
-import { recordOdometerReading } from "../../repositories/odometerRepository";
+import { listOdometerReadings, recordOdometerReading } from "../../repositories/odometerRepository";
 import { getLoanForVehicle, setLoanForVehicle, summarizeLoan } from "../../repositories/loanRepository";
 import { listShops } from "../../repositories/shopRepository";
 import { snoozeSchedule } from "../../repositories/scheduleRepository";
 import { listRecallsForVehicle } from "../../repositories/recallRepository";
+import { listExpensesForVehicle } from "../../repositories/expenseRepository";
 import type {
   DocumentType,
   MaintenanceSchedule,
@@ -60,6 +62,22 @@ type ScheduleRow = MaintenanceSchedule & { item_name: string };
 function formatDueDate(iso: string | null): string {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * Deleting a vehicle cascades its DB rows, but not the photo files those
+ * rows pointed at — collect every child photo_uri before the delete removes
+ * the rows they came from, so they can be cleaned up too.
+ */
+async function collectChildPhotoUris(vehicleId: number): Promise<string[]> {
+  const [records, odometerReadings, expenses] = await Promise.all([
+    listMaintenanceRecords(vehicleId),
+    listOdometerReadings(vehicleId),
+    listExpensesForVehicle(vehicleId),
+  ]);
+  return [...records, ...odometerReadings, ...expenses]
+    .map((row) => row.photo_uri)
+    .filter((uri): uri is string => uri != null);
 }
 
 export default function VehicleDetailScreen({ route, navigation }: Props) {
@@ -116,7 +134,9 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           style: "destructive",
           onPress: async () => {
             try {
+              const childPhotoUris = await collectChildPhotoUris(vehicleId);
               deleteVehiclePhoto(vehicle.photo_uri);
+              childPhotoUris.forEach(deleteVehiclePhoto);
               await deleteVehicle(vehicleId);
               navigation.goBack();
             } catch (err) {

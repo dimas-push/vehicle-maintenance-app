@@ -23,8 +23,11 @@ export function UnitPreferenceProvider({ children }: { children: ReactNode }) {
   const [volumeUnit, setVolumeUnitState] = useState<VolumeUnit>("liters");
 
   useEffect(() => {
-    getUnitPreference().then(setUnitState);
-    getVolumeUnitPreference().then(setVolumeUnitState);
+    // Falls back to the defaults already in state above if the stored
+    // preference can't be read — not worth an error alert for a cosmetic
+    // default, but the rejection still needs to be acknowledged.
+    getUnitPreference().then(setUnitState).catch(() => {});
+    getVolumeUnitPreference().then(setVolumeUnitState).catch(() => {});
   }, []);
 
   function setUnit(next: DistanceUnit) {

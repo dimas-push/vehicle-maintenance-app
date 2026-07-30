@@ -14,7 +14,9 @@ export default function ShopListScreen() {
   const [editingShop, setEditingShop] = useState<ServiceShop | null>(null);
 
   const reload = useCallback(() => {
-    listShops().then(setShops);
+    listShops()
+      .then(setShops)
+      .catch((err) => showErrorAlert("Couldn't load shops", err));
   }, []);
 
   useFocusEffect(reload);

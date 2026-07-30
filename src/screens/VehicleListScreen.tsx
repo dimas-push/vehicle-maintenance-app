@@ -16,6 +16,7 @@ import { STATUS_LABEL, STATUS_STYLE, worstStatus } from "../utils/scheduleStatus
 import { useUnitPreference } from "../context/UnitPreferenceContext";
 import { formatDistance } from "../utils/units";
 import { vehicleClassIcon } from "../utils/vehicleIcon";
+import { showErrorAlert } from "../utils/errorAlert";
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<VehicleTabsParamList, "Vehicles">,
@@ -33,12 +34,14 @@ export default function VehicleListScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      listVehicles().then(async (list) => {
-        const withStatus = await Promise.all(
-          list.map(async (v) => ({ ...v, worstStatus: await worstStatusFor(v.id) }))
-        );
-        setVehicles(withStatus);
-      });
+      listVehicles()
+        .then(async (list) => {
+          const withStatus = await Promise.all(
+            list.map(async (v) => ({ ...v, worstStatus: await worstStatusFor(v.id) }))
+          );
+          setVehicles(withStatus);
+        })
+        .catch((err) => showErrorAlert("Couldn't load vehicles", err));
     }, [])
   );
 

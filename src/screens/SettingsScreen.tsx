@@ -68,7 +68,9 @@ export default function SettingsScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      getOwnerProfile().then(setProfile);
+      getOwnerProfile()
+        .then(setProfile)
+        .catch((err) => showErrorAlert("Couldn't load profile", err));
     }, [])
   );
 
@@ -100,17 +102,23 @@ export default function SettingsScreen({ navigation }: Props) {
   }
 
   useEffect(() => {
-    getReminderThresholds().then(({ kmThreshold, daysThreshold }) => {
-      setKmInput(String(Math.round(kmToDisplay(kmThreshold, unit))));
-      setDaysInput(String(daysThreshold));
-    });
+    getReminderThresholds()
+      .then(({ kmThreshold, daysThreshold }) => {
+        setKmInput(String(Math.round(kmToDisplay(kmThreshold, unit))));
+        setDaysInput(String(daysThreshold));
+      })
+      .catch((err) => showErrorAlert("Couldn't load reminder settings", err));
   }, [unit]);
 
   useFocusEffect(
     useCallback(() => {
       // Re-check on every focus — the user may have just come back from the
       // system Settings app after changing the permission there.
-      if (Platform.OS !== "web") getNotificationPermissionState().then(setNotifPermission);
+      if (Platform.OS !== "web") {
+        getNotificationPermissionState()
+          .then(setNotifPermission)
+          .catch((err) => showErrorAlert("Couldn't check notification permission", err));
+      }
     }, [])
   );
 
