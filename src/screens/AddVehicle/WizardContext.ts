@@ -1,7 +1,4 @@
-// TODO(M1): replace with the real VehicleClass from src/types/models.ts once
-// the data layer is ported — kept local here so the M0 navigation shell
-// doesn't need to wait on M1.
-export type VehicleClass = "motorcycle" | "car";
+import type { VehicleClass } from "../../types/models";
 
 export type AddVehicleStackParamList = {
   SelectVehicleClass: undefined;

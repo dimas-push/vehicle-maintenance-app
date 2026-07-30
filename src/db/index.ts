@@ -1,0 +1,49 @@
+import * as SQLite from "expo-sqlite";
+import { SCHEMA_SQL } from "./schema";
+import { seedCatalog } from "./seed";
+
+// Bump this whenever the schema or catalog seed data changes shape —
+// existing installs get their local database rebuilt from scratch instead
+// of silently keeping stale data. Bumped for the rebuild's vehicle_loans
+// UNIQUE(vehicle_id) constraint (previously enforced only in the app layer).
+const SCHEMA_VERSION = 10;
+
+const TABLES = [
+  "vehicle_recalls",
+  "misc_expenses",
+  "reminders",
+  "maintenance_schedules",
+  "vehicle_documents",
+  "vehicle_loans",
+  "fuel_logs",
+  "odometer_readings",
+  "maintenance_records",
+  "service_shops",
+  "vehicles",
+  "maintenance_intervals",
+  "maintenance_items",
+  "vehicle_types",
+  "brands",
+];
+
+let dbInstance: SQLite.SQLiteDatabase | null = null;
+
+export async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (dbInstance) return dbInstance;
+
+  const db = await SQLite.openDatabaseAsync("vehicle_maintenance.db");
+
+  const versionRow = await db.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
+  if ((versionRow?.user_version ?? 0) !== SCHEMA_VERSION) {
+    for (const table of TABLES) {
+      await db.execAsync(`DROP TABLE IF EXISTS ${table}`);
+    }
+    await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+  }
+
+  await db.execAsync(SCHEMA_SQL);
+  await seedCatalog(db);
+
+  dbInstance = db;
+  return db;
+}
