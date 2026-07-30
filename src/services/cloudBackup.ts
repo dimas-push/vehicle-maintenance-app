@@ -1,6 +1,7 @@
 import { getDownloadURL, ref, uploadString } from "firebase/storage";
 import { storage } from "./firebase";
 import { applyBackupData, buildBackupData, parseBackupJson, type ImportSummary } from "./backup";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 
 function backupPath(uid: string): string {
   return `backups/${uid}/backup.json`;
@@ -29,7 +30,7 @@ export async function restoreFromCloud(uid: string): Promise<ImportSummary | nul
     throw err;
   }
 
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   const text = await response.text();
   return applyBackupData(parseBackupJson(text));
 }

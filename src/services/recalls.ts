@@ -2,6 +2,7 @@ import { getVehicleTypeWithBrandName } from "../repositories/catalogRepository";
 import { getVehicle } from "../repositories/vehicleRepository";
 import { replaceRecallsForVehicle } from "../repositories/recallRepository";
 import { parseNhtsaDate } from "../utils/nhtsaDate";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 
 interface NhtsaRecallResult {
   NHTSACampaignNumber: string;
@@ -40,7 +41,7 @@ export async function checkRecallsForVehicle(vehicleId: number): Promise<number>
     modelYear: String(vehicle.year),
   });
 
-  const response = await fetch(`https://api.nhtsa.gov/recalls/recallsByVehicle?${params.toString()}`);
+  const response = await fetchWithTimeout(`https://api.nhtsa.gov/recalls/recallsByVehicle?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`Recall lookup failed (${response.status}). Try again later.`);
   }
