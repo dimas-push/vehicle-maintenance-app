@@ -7,8 +7,10 @@ import { getVehicleTypeWithBrandName } from "../repositories/catalogRepository";
 import { listMaintenanceRecords } from "../repositories/scheduleRepository";
 import { listFuelLogs } from "../repositories/fuelRepository";
 import { listDocumentsForVehicle } from "../repositories/documentRepository";
+import { listExpensesForVehicle } from "../repositories/expenseRepository";
 import { formatDistance, formatVolume, type DistanceUnit, type VolumeUnit } from "../utils/units";
 import { DOCUMENT_TYPE_LABEL } from "../utils/documentStatus";
+import { EXPENSE_CATEGORY_LABEL } from "../utils/expenseCategory";
 import { formatVehicleSpecs } from "../utils/vehicleSpecs";
 import { getOwnerProfile } from "../utils/ownerProfile";
 
@@ -68,11 +70,12 @@ export async function exportServiceReportPdf(
   const vehicle = await getVehicle(vehicleId);
   if (!vehicle) throw new Error("Vehicle not found");
 
-  const [typeInfo, records, fuelLogs, documents, ownerProfile] = await Promise.all([
+  const [typeInfo, records, fuelLogs, documents, expenses, ownerProfile] = await Promise.all([
     getVehicleTypeWithBrandName(vehicle.vehicle_type_id),
     listMaintenanceRecords(vehicleId),
     listFuelLogs(vehicleId),
     listDocumentsForVehicle(vehicleId),
+    listExpensesForVehicle(vehicleId),
     getOwnerProfile(),
   ]);
   const specsLine = formatVehicleSpecs(vehicle);
@@ -107,6 +110,17 @@ export async function exportServiceReportPdf(
         <td>${DOCUMENT_TYPE_LABEL[d.document_type]}</td>
         <td>${d.label}</td>
         <td>${d.expiry_date}</td>
+      </tr>`
+    )
+    .join("");
+
+  const expenseRows = expenses
+    .map(
+      (e) => `<tr>
+        <td>${e.expense_date}</td>
+        <td>${EXPENSE_CATEGORY_LABEL[e.category]}</td>
+        <td>${e.amount.toFixed(2)}</td>
+        <td>${e.notes ?? ""}</td>
       </tr>`
     )
     .join("");
@@ -151,6 +165,13 @@ export async function exportServiceReportPdf(
           <table>
             <tr><th>Date</th><th>Odometer</th><th>Volume</th><th>Cost</th><th>Type</th></tr>
             ${fuelRows}
+          </table>`}
+
+        <h2>Other Expenses</h2>
+        ${expenses.length === 0 ? '<p class="empty">No other expenses logged.</p>' : `
+          <table>
+            <tr><th>Date</th><th>Category</th><th>Amount</th><th>Notes</th></tr>
+            ${expenseRows}
           </table>`}
 
         <h2>Documents</h2>

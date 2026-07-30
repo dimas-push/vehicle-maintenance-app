@@ -58,6 +58,19 @@ export function formatVolume(liters: number, unit: VolumeUnit): string {
   return `${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${unit === "gallons" ? "gal" : "L"}`;
 }
 
+/** Raw distance-per-volume figure (higher is better) in whichever units are selected — null if volume is 0. */
+export function economyValue(
+  distanceKm: number,
+  volumeLiters: number,
+  distanceUnit: DistanceUnit,
+  volumeUnit: VolumeUnit
+): number | null {
+  if (volumeLiters <= 0) return null;
+  const distance = kmToDisplay(distanceKm, distanceUnit);
+  const volume = litersToDisplay(volumeLiters, volumeUnit);
+  return distance / volume;
+}
+
 /** Fuel economy as distance-per-volume (higher is better) in whichever units are selected. */
 export function formatEconomy(
   distanceKm: number,
@@ -65,10 +78,8 @@ export function formatEconomy(
   distanceUnit: DistanceUnit,
   volumeUnit: VolumeUnit
 ): string {
-  if (volumeLiters <= 0) return "—";
-  const distance = kmToDisplay(distanceKm, distanceUnit);
-  const volume = litersToDisplay(volumeLiters, volumeUnit);
-  const economy = distance / volume;
+  const economy = economyValue(distanceKm, volumeLiters, distanceUnit, volumeUnit);
+  if (economy == null) return "—";
   const distanceLabel = distanceUnit === "mi" ? "mi" : "km";
   const volumeLabel = volumeUnit === "gallons" ? "gal" : "L";
   return `${economy.toLocaleString("en-US", { maximumFractionDigits: 1 })} ${distanceLabel}/${volumeLabel}`;

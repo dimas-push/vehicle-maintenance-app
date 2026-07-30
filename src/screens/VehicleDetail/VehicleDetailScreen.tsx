@@ -25,12 +25,14 @@ import { recordOdometerReading } from "../../repositories/odometerRepository";
 import { getLoanForVehicle, setLoanForVehicle, summarizeLoan } from "../../repositories/loanRepository";
 import { listShops } from "../../repositories/shopRepository";
 import { snoozeSchedule } from "../../repositories/scheduleRepository";
+import { listRecallsForVehicle } from "../../repositories/recallRepository";
 import type {
   DocumentType,
   MaintenanceSchedule,
   ServiceShop,
   VehicleDocument,
   VehicleLoan,
+  VehicleRecall,
 } from "../../types/models";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
@@ -38,6 +40,7 @@ import { STATUS_LABEL, STATUS_STYLE } from "../../utils/scheduleStatusPresentati
 import { DOCUMENT_TYPE_LABEL, statusFromExpiry } from "../../utils/documentStatus";
 import { getReminderThresholds } from "../../utils/reminderSettings";
 import { notifyDueSchedules } from "../../services/notifications";
+import { checkRecallsForVehicle } from "../../services/recalls";
 import { deleteVehiclePhoto, pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../../services/photos";
 import { exportServiceReportCsv, exportServiceReportPdf } from "../../services/report";
 import { showErrorAlert } from "../../utils/errorAlert";
@@ -72,16 +75,19 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const [loan, setLoan] = useState<VehicleLoan | null>(null);
   const [loanModalVisible, setLoanModalVisible] = useState(false);
   const [shops, setShops] = useState<ServiceShop[]>([]);
+  const [recalls, setRecalls] = useState<VehicleRecall[]>([]);
+  const [checkingRecalls, setCheckingRecalls] = useState(false);
   const { unit, volumeUnit } = useUnitPreference();
 
   const reload = useCallback(async () => {
-    const [v, s, d, thresholds, l, sh] = await Promise.all([
+    const [v, s, d, thresholds, l, sh, r] = await Promise.all([
       getVehicle(vehicleId),
       listSchedulesForVehicle(vehicleId),
       listDocumentsForVehicle(vehicleId),
       getReminderThresholds(),
       getLoanForVehicle(vehicleId),
       listShops(),
+      listRecallsForVehicle(vehicleId),
     ]);
     setVehicle(v);
     setSchedules(s.sort((a, b) => b.status.localeCompare(a.status)));
@@ -89,6 +95,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     setDaysThreshold(thresholds.daysThreshold);
     setLoan(l);
     setShops(sh);
+    setRecalls(r);
   }, [vehicleId]);
 
   useFocusEffect(
@@ -357,6 +364,18 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     ]);
   }
 
+  async function handleCheckRecalls() {
+    setCheckingRecalls(true);
+    try {
+      await checkRecallsForVehicle(vehicleId);
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't check recalls", err);
+    } finally {
+      setCheckingRecalls(false);
+    }
+  }
+
   if (!vehicle) return null;
   const specsLine = formatVehicleSpecs(vehicle);
 
@@ -411,6 +430,24 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           <Text style={styles.historyLinkText}>View Fuel Log</Text>
           <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
         </Pressable>
+
+        <Pressable
+          style={[styles.historyLink, styles.noBorderTop]}
+          onPress={() => navigation.navigate("ExpenseLog", { vehicleId, nickname: vehicle.nickname })}
+        >
+          <Ionicons name="wallet-outline" size={16} color={colors.textMuted} />
+          <Text style={styles.historyLinkText}>View Other Expenses</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+        </Pressable>
+
+        <Pressable
+          style={[styles.historyLink, styles.noBorderTop]}
+          onPress={() => navigation.navigate("VehicleStats", { vehicleId, nickname: vehicle.nickname })}
+        >
+          <Ionicons name="stats-chart-outline" size={16} color={colors.textMuted} />
+          <Text style={styles.historyLinkText}>View Cost & Economy Trends</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+        </Pressable>
       </View>
 
       <FlatList
@@ -420,6 +457,42 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         ListHeaderComponent={
           <>
             <View style={styles.documentsHeader}>
+              <Text style={styles.sectionTitle}>Recalls</Text>
+              <Pressable
+                onPress={handleCheckRecalls}
+                hitSlop={8}
+                disabled={checkingRecalls}
+                accessibilityRole="button"
+                accessibilityLabel="Check for recalls"
+              >
+                <Ionicons name="refresh-outline" size={20} color={colors.primary} />
+              </Pressable>
+            </View>
+            {checkingRecalls ? (
+              <Text style={styles.emptyDocsText}>Checking NHTSA for open recalls...</Text>
+            ) : vehicle.recalls_checked_at == null ? (
+              <Text style={styles.emptyDocsText}>
+                Tap the refresh icon to check NHTSA for open recalls (US data only, needs the vehicle's year).
+              </Text>
+            ) : recalls.length === 0 ? (
+              <Text style={styles.emptyDocsText}>
+                No open recalls found. Checked {formatDueDate(vehicle.recalls_checked_at)}.
+              </Text>
+            ) : (
+              recalls.map((r) => (
+                <View key={r.id} style={styles.recallCard}>
+                  <View style={styles.recallHeader}>
+                    <Text style={styles.docLabel}>{r.component}</Text>
+                    <View style={[styles.badge, { backgroundColor: colors.dangerSoft }]}>
+                      <Text style={[styles.badgeText, { color: colors.danger }]}>Open Recall</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.docExpiry}>{r.summary}</Text>
+                </View>
+              ))
+            )}
+
+            <View style={[styles.documentsHeader, styles.scheduleTitle]}>
               <Text style={styles.sectionTitle}>Documents</Text>
               <Pressable
                 onPress={() => setDocumentModalVisible(true)}
@@ -658,6 +731,16 @@ const styles = StyleSheet.create({
   docRowText: { flex: 1 },
   docLabel: { ...typography.body, fontWeight: "700", fontSize: 14 },
   docExpiry: { ...typography.caption, marginTop: 2 },
+  recallCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.sm + 4,
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.dangerSoft,
+    ...shadow.card,
+  },
+  recallHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

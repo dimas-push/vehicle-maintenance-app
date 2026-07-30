@@ -4,6 +4,8 @@ import AddVehicleWizard from "../screens/AddVehicle/AddVehicleWizard";
 import VehicleDetailScreen from "../screens/VehicleDetail/VehicleDetailScreen";
 import MaintenanceHistoryScreen from "../screens/VehicleDetail/MaintenanceHistoryScreen";
 import FuelLogScreen from "../screens/VehicleDetail/FuelLogScreen";
+import ExpenseLogScreen from "../screens/VehicleDetail/ExpenseLogScreen";
+import VehicleStatsScreen from "../screens/VehicleDetail/VehicleStatsScreen";
 import ShopListScreen from "../screens/Shops/ShopListScreen";
 import { colors } from "../theme";
 
@@ -13,6 +15,8 @@ export type RootStackParamList = {
   VehicleDetail: { vehicleId: number };
   MaintenanceHistory: { vehicleId: number; nickname: string };
   FuelLog: { vehicleId: number; nickname: string };
+  ExpenseLog: { vehicleId: number; nickname: string };
+  VehicleStats: { vehicleId: number; nickname: string };
   ShopList: undefined;
 };
 
@@ -49,6 +53,16 @@ export default function RootNavigator() {
         name="FuelLog"
         component={FuelLogScreen}
         options={({ route }) => ({ headerTitle: `${route.params.nickname} — Fuel` })}
+      />
+      <Stack.Screen
+        name="ExpenseLog"
+        component={ExpenseLogScreen}
+        options={({ route }) => ({ headerTitle: `${route.params.nickname} — Expenses` })}
+      />
+      <Stack.Screen
+        name="VehicleStats"
+        component={VehicleStatsScreen}
+        options={({ route }) => ({ headerTitle: `${route.params.nickname} — Trends` })}
       />
       <Stack.Screen
         name="ShopList"

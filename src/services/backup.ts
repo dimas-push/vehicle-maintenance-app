@@ -17,14 +17,14 @@ import { createDocument, listDocumentsForVehicle } from "../repositories/documen
 import { createFuelLog, listFuelLogs } from "../repositories/fuelRepository";
 import { findOrCreateShopByName } from "../repositories/shopRepository";
 import { getLoanForVehicle, setLoanForVehicle } from "../repositories/loanRepository";
+import { createExpense, listExpensesForVehicle } from "../repositories/expenseRepository";
 import { getOwnerProfile, isOwnerProfileEmpty, setOwnerProfile, type OwnerProfile } from "../utils/ownerProfile";
-import type { DocumentType, FuelType, Transmission } from "../types/models";
+import type { DocumentType, ExpenseCategory, FuelType, Transmission } from "../types/models";
 import { notifyDueSchedules } from "./notifications";
 
-// Bumped from 4 to 5 to add vehicle spec fields (year/color/engine/
-// transmission/fuel type) and the owner profile — older backups still
-// import fine since all the new fields are optional on read.
-const BACKUP_FORMAT_VERSION = 5;
+// Bumped from 5 to 6 to add the misc-expense log (parking, tolls, etc.) —
+// older backups still import fine since the field is optional on read.
+const BACKUP_FORMAT_VERSION = 6;
 
 interface BackupRecord {
   item_name: string;
@@ -58,6 +58,13 @@ interface BackupFuelLog {
   notes: string | null;
 }
 
+interface BackupExpense {
+  category: ExpenseCategory;
+  amount: number;
+  expense_date: string;
+  notes: string | null;
+}
+
 interface BackupVehicle {
   nickname: string;
   plate_number: string | null;
@@ -69,6 +76,7 @@ interface BackupVehicle {
   records: BackupRecord[];
   documents?: BackupDocument[];
   fuelLogs?: BackupFuelLog[];
+  expenses?: BackupExpense[];
   loan?: BackupLoan | null;
   year?: number | null;
   color?: string | null;
@@ -98,6 +106,7 @@ export async function buildBackupData(): Promise<BackupFile> {
     const records = await listMaintenanceRecords(vehicle.id);
     const documents = await listDocumentsForVehicle(vehicle.id);
     const fuelLogs = await listFuelLogs(vehicle.id);
+    const expenses = await listExpensesForVehicle(vehicle.id);
     const loan = await getLoanForVehicle(vehicle.id);
 
     backupVehicles.push({
@@ -129,6 +138,12 @@ export async function buildBackupData(): Promise<BackupFile> {
         cost: f.cost,
         full_tank: f.full_tank === 1,
         notes: f.notes,
+      })),
+      expenses: expenses.map((e) => ({
+        category: e.category,
+        amount: e.amount,
+        expense_date: e.expense_date,
+        notes: e.notes,
       })),
       loan: loan
         ? {
@@ -272,6 +287,16 @@ export async function applyBackupData(data: BackupFile): Promise<ImportSummary> 
         cost: log.cost,
         full_tank: log.full_tank,
         notes: log.notes,
+      });
+    }
+
+    for (const expense of backupVehicle.expenses ?? []) {
+      await createExpense({
+        vehicle_id: vehicle.id,
+        category: expense.category,
+        amount: expense.amount,
+        expense_date: expense.expense_date,
+        notes: expense.notes,
       });
     }
 

@@ -5,6 +5,7 @@ import { createDocument } from "../repositories/documentRepository";
 import { createFuelLog } from "../repositories/fuelRepository";
 import { createShop } from "../repositories/shopRepository";
 import { setLoanForVehicle } from "../repositories/loanRepository";
+import { createExpense } from "../repositories/expenseRepository";
 import { notifyDueSchedules } from "../services/notifications";
 import { getDb } from "./index";
 
@@ -125,6 +126,20 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     volume_liters: 4.1,
     cost: 5.5,
     full_tank: true,
+  });
+  await createFuelLog({
+    vehicle_id: dadsBike.id,
+    filled_at_km: 14460,
+    filled_at_date: daysAgo(16),
+    volume_liters: 4.3,
+    cost: 5.7,
+    full_tank: true,
+  });
+  await createExpense({
+    vehicle_id: dadsBike.id,
+    category: "parking",
+    amount: 2,
+    expense_date: daysAgo(4),
   });
 
   // Mom's Scooter: regular servicing, everything on track
@@ -251,6 +266,26 @@ export async function seedDummyVehiclesIfEmpty(): Promise<void> {
     volume_liters: 43,
     cost: 50,
     full_tank: true,
+  });
+  await createFuelLog({
+    vehicle_id: familyCar.id,
+    filled_at_km: 61000,
+    filled_at_date: daysAgo(17),
+    volume_liters: 44,
+    cost: 51,
+    full_tank: true,
+  });
+  await createExpense({
+    vehicle_id: familyCar.id,
+    category: "toll",
+    amount: 12.5,
+    expense_date: daysAgo(3),
+  });
+  await createExpense({
+    vehicle_id: familyCar.id,
+    category: "car_wash",
+    amount: 15,
+    expense_date: daysAgo(35),
   });
   await setLoanForVehicle(familyCar.id, {
     lender: "Toyota Financial",

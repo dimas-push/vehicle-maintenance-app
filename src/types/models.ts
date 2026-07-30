@@ -57,6 +57,7 @@ export interface Vehicle {
   engine_size: string | null;
   transmission: Transmission | null;
   fuel_type: FuelType | null;
+  recalls_checked_at: string | null; // ISO datetime
   created_at: string;
 }
 
@@ -146,4 +147,27 @@ export interface Reminder {
   notified_status: "due_soon" | "overdue";
   notified_at: string;
   channel: "push" | "in_app";
+}
+
+export type ExpenseCategory = "parking" | "toll" | "car_wash" | "fine" | "accessory" | "other";
+
+export interface MiscExpense {
+  id: number;
+  vehicle_id: number;
+  category: ExpenseCategory;
+  amount: number;
+  expense_date: string; // ISO date
+  notes: string | null;
+  photo_uri: string | null;
+}
+
+export interface VehicleRecall {
+  id: number;
+  vehicle_id: number;
+  campaign_number: string;
+  component: string;
+  summary: string;
+  consequence: string | null;
+  remedy: string | null;
+  report_received_date: string | null;
 }

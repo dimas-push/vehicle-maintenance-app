@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
   engine_size TEXT,
   transmission TEXT CHECK (transmission IN ('manual', 'automatic', 'cvt', 'dct', 'other')),
   fuel_type TEXT CHECK (fuel_type IN ('gasoline', 'diesel', 'electric', 'hybrid', 'other')),
+  recalls_checked_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -158,5 +159,33 @@ CREATE TABLE IF NOT EXISTS reminders (
   notified_at TEXT NOT NULL,
   channel TEXT NOT NULL CHECK (channel IN ('push', 'in_app')),
   UNIQUE (schedule_id)
+);
+
+-- Costs that are neither a maintenance record nor a fuel fill-up: parking,
+-- tolls, car washes, fines, accessories. Needed so cost-of-ownership totals
+-- (and the cost trend chart) aren't missing a whole category of spending.
+CREATE TABLE IF NOT EXISTS misc_expenses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+  category TEXT NOT NULL CHECK (category IN ('parking', 'toll', 'car_wash', 'fine', 'accessory', 'other')),
+  amount REAL NOT NULL,
+  expense_date TEXT NOT NULL,
+  notes TEXT,
+  photo_uri TEXT
+);
+
+-- Cached result of the last NHTSA recall check (vehicles.recalls_checked_at
+-- holds when it ran). Replaced wholesale on each check rather than diffed,
+-- since NHTSA's recall list for a make/model/year only grows over time.
+CREATE TABLE IF NOT EXISTS vehicle_recalls (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+  campaign_number TEXT NOT NULL,
+  component TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  consequence TEXT,
+  remedy TEXT,
+  report_received_date TEXT,
+  UNIQUE (vehicle_id, campaign_number)
 );
 `;
