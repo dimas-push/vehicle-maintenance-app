@@ -18,6 +18,8 @@ export const colors = {
   warningSoft: "#fffbeb",
   danger: "#dc2626",
   dangerSoft: "#fef2f2",
+
+  backdrop: "rgba(15, 23, 42, 0.4)",
 } as const;
 
 export const spacing = {
@@ -41,11 +43,20 @@ export const typography = {
   body: { fontSize: 15, color: colors.text },
   label: { fontSize: 13, fontWeight: "600" as const, color: colors.textMuted },
   caption: { fontSize: 12, color: colors.textSubtle },
+  // Structural-only (no color) — compose with a color override at the call
+  // site. Used for badges/chip status text and compact link-style buttons,
+  // both a size step below `label`/`caption` but still bold.
+  microBold: { fontSize: 11, fontWeight: "700" as const },
+  smallBold: { fontSize: 13, fontWeight: "700" as const },
 };
 
 export const shadow = {
   card: {
     boxShadow: "0px 1px 8px rgba(15, 23, 42, 0.06)",
     elevation: 2,
+  },
+  fab: {
+    boxShadow: "0px 2px 10px rgba(37, 99, 235, 0.35)",
+    elevation: 4,
   },
 } as const;
