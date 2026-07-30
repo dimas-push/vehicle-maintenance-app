@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,15 +16,31 @@ import { colors, spacing, typography } from './src/theme';
 export default function App() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  // Web preview needs SharedArrayBuffer (crossOriginIsolated) for expo-sqlite,
+  // which this project's dev server can't reliably grant to the top-level
+  // document — see metro.config.js. When that happens, getDb() hangs forever
+  // rather than rejecting, so a timeout is the only way to catch it and point
+  // the user at Expo Go instead of leaving them on a spinner indefinitely.
+  const [webTimedOut, setWebTimedOut] = useState(false);
 
   useEffect(() => {
+    const timeoutId =
+      Platform.OS === 'web' ? setTimeout(() => setWebTimedOut(true), 10000) : undefined;
+
     getDb()
       .then(async () => {
         await initNotifications();
         if (__DEV__) await seedDummyVehiclesIfEmpty();
         setDbReady(true);
       })
-      .catch((err) => setDbError(String(err)));
+      .catch((err) => setDbError(String(err)))
+      .finally(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+      });
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   if (dbError) {
@@ -33,6 +49,19 @@ export default function App() {
         <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
         <Text style={styles.errorTitle}>Failed to open the database</Text>
         <Text style={styles.errorDetail}>{dbError}</Text>
+      </View>
+    );
+  }
+
+  if (webTimedOut && !dbReady) {
+    return (
+      <View style={styles.container}>
+        <Ionicons name="phone-portrait-outline" size={40} color={colors.textMuted} />
+        <Text style={styles.errorTitle}>Web preview isn't loading</Text>
+        <Text style={styles.errorDetail}>
+          This app's offline database needs a browser feature that isn't reliably available in web
+          preview yet. Use Expo Go on your phone for the full app.
+        </Text>
       </View>
     );
   }
