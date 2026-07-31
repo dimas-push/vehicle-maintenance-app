@@ -1,30 +1,42 @@
-import { useCallback, useEffect, useLayoutEffect } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { Alert, FlatList, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   deleteVehicle,
   getVehicle,
+  updateCurrentKm,
+  updateVehicleDetails,
   updateVehiclePhoto,
 } from "../../repositories/vehicleRepository";
 import type { VehicleWithClass } from "../../repositories/vehicleRepository";
 import {
   listMaintenanceRecords,
   listSchedulesForVehicle,
+  recalculateSchedules,
+  recordMaintenanceDone,
   snoozeSchedule,
 } from "../../repositories/scheduleRepository";
 import { deleteDocument, listDocumentsForVehicle } from "../../repositories/documentRepository";
-import { listOdometerReadings } from "../../repositories/odometerRepository";
+import { listOdometerReadings, recordOdometerReading } from "../../repositories/odometerRepository";
 import { getLoanForVehicle, summarizeLoan } from "../../repositories/loanRepository";
 import { listRecallsForVehicle } from "../../repositories/recallRepository";
 import { listExpensesForVehicle } from "../../repositories/expenseRepository";
-import type { MaintenanceSchedule, VehicleDocument, VehicleLoan, VehicleRecall } from "../../types/models";
+import { listShops } from "../../repositories/shopRepository";
+import type {
+  MaintenanceSchedule,
+  ServiceShop,
+  VehicleDocument,
+  VehicleLoan,
+  VehicleRecall,
+} from "../../types/models";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { colors, radius, spacing, typography } from "../../theme";
 import { STATUS_LABEL, STATUS_STYLE } from "../../utils/scheduleStatusPresentation";
 import { DOCUMENT_TYPE_LABEL, statusFromExpiry } from "../../utils/documentStatus";
 import { getReminderThresholds } from "../../utils/reminderSettings";
 import { deleteVehiclePhoto, pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../../services/photos";
+import { notifyDueSchedules } from "../../services/notifications";
 import { showErrorAlert } from "../../utils/errorAlert";
 import { confirmDestructive } from "../../utils/confirmDestructive";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
@@ -38,6 +50,9 @@ import StatusBadge from "../../components/StatusBadge";
 import ListRow from "../../components/ListRow";
 import IconButton from "../../components/IconButton";
 import QuickActionButton from "../../components/QuickActionButton";
+import UpdateKmModal from "./UpdateKmModal";
+import EditVehicleModal, { type EditVehicleSubmitValues } from "./EditVehicleModal";
+import MarkDoneModal from "./MarkDoneModal";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VehicleDetail">;
 type ScheduleRow = MaintenanceSchedule & { item_name: string };
@@ -49,6 +64,7 @@ interface DetailData {
   daysThreshold: number;
   loan: VehicleLoan | null;
   recalls: VehicleRecall[];
+  shops: ServiceShop[];
 }
 
 function formatDueDate(iso: string | null): string {
@@ -78,13 +94,14 @@ async function collectChildPhotoUris(vehicleId: number): Promise<string[]> {
 }
 
 async function loadDetail(vehicleId: number): Promise<DetailData> {
-  const [vehicle, schedules, documents, thresholds, loan, recalls] = await Promise.all([
+  const [vehicle, schedules, documents, thresholds, loan, recalls, shops] = await Promise.all([
     getVehicle(vehicleId),
     listSchedulesForVehicle(vehicleId),
     listDocumentsForVehicle(vehicleId),
     getReminderThresholds(),
     getLoanForVehicle(vehicleId),
     listRecallsForVehicle(vehicleId),
+    listShops(),
   ]);
   return {
     vehicle,
@@ -93,6 +110,7 @@ async function loadDetail(vehicleId: number): Promise<DetailData> {
     daysThreshold: thresholds.daysThreshold,
     loan,
     recalls,
+    shops,
   };
 }
 
@@ -101,6 +119,10 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const { unit } = useUnitPreference();
   const { data, error, reload } = useAsyncData(useCallback(() => loadDetail(vehicleId), [vehicleId]));
   useFocusRefresh(reload);
+
+  const [kmModalVisible, setKmModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [markDoneItem, setMarkDoneItem] = useState<ScheduleRow | null>(null);
 
   useEffect(() => {
     if (error) showErrorAlert("Couldn't load vehicle", error);
@@ -112,6 +134,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const daysThreshold = data?.daysThreshold ?? 14;
   const loan = data?.loan ?? null;
   const recalls = data?.recalls ?? [];
+  const shops = data?.shops ?? [];
 
   const handleDelete = useCallback(() => {
     if (!vehicle) return;
@@ -131,6 +154,64 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
       }
     );
   }, [vehicle, vehicleId, navigation]);
+
+  async function handleUpdateKm(newKm: number, photoUri: string | null) {
+    setKmModalVisible(false);
+    try {
+      await updateCurrentKm(vehicleId, newKm);
+      await recordOdometerReading(vehicleId, newKm, photoUri);
+      await recalculateSchedules(vehicleId);
+      await notifyDueSchedules(vehicleId);
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't update odometer", err);
+    }
+  }
+
+  async function handleEditSave(values: EditVehicleSubmitValues) {
+    setEditModalVisible(false);
+    try {
+      await updateVehicleDetails(vehicleId, {
+        nickname: values.nickname,
+        plate_number: values.plateNumber,
+        vin: values.vin,
+        year: values.year,
+        color: values.color,
+        engine_size: values.engineSize,
+        transmission: values.transmission,
+        fuel_type: values.fuelType,
+      });
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't save changes", err);
+    }
+  }
+
+  async function handleMarkDoneSubmit(
+    cost: number | null,
+    notes: string | null,
+    photoUri: string | null,
+    shopId: number | null
+  ) {
+    if (!vehicle || !markDoneItem) return;
+    setMarkDoneItem(null);
+    try {
+      await recordMaintenanceDone({
+        vehicleId,
+        maintenanceItemId: markDoneItem.maintenance_item_id,
+        doneAtKm: vehicle.current_km,
+        doneAtDate: new Date().toISOString().slice(0, 10),
+        notes,
+        cost,
+        photoUri,
+        shopId,
+      });
+      await notifyDueSchedules(vehicleId);
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't save service record", err);
+    }
+  }
 
   function handleChangePhoto() {
     Alert.alert("Vehicle Photo", undefined, [
@@ -186,7 +267,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
           />
           <IconButton
             icon={<Ionicons name="pencil-outline" size={22} color={colors.primary} />}
-            onPress={() => comingSoon("Edit Vehicle", "M3")}
+            onPress={() => setEditModalVisible(true)}
             accessibilityLabel="Edit vehicle"
           />
           <IconButton
@@ -281,7 +362,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                 <Text style={styles.kmButtonText}>Update Odometer</Text>
               </View>
             }
-            onPress={() => comingSoon("Update Odometer", "M3")}
+            onPress={() => setKmModalVisible(true)}
             accessibilityLabel="Update odometer"
           />
         </View>
@@ -450,7 +531,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                       <Text style={styles.doneButtonText}>Mark as Done</Text>
                     </View>
                   }
-                  onPress={() => comingSoon("Mark as Done", "M3")}
+                  onPress={() => setMarkDoneItem(item)}
                   accessibilityLabel={`Mark ${item.item_name} as done`}
                 />
                 {(item.status === "due_soon" || item.status === "overdue") && (
@@ -469,6 +550,38 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
             </Card>
           );
         }}
+      />
+
+      <UpdateKmModal
+        visible={kmModalVisible}
+        currentKm={vehicle.current_km}
+        unit={unit}
+        onCancel={() => setKmModalVisible(false)}
+        onSubmit={handleUpdateKm}
+      />
+
+      <EditVehicleModal
+        visible={editModalVisible}
+        vehicleClass={vehicle.vehicle_class}
+        nickname={vehicle.nickname}
+        plateNumber={vehicle.plate_number}
+        vin={vehicle.vin}
+        year={vehicle.year}
+        color={vehicle.color}
+        engineSize={vehicle.engine_size}
+        transmission={vehicle.transmission}
+        fuelType={vehicle.fuel_type}
+        onCancel={() => setEditModalVisible(false)}
+        onSubmit={handleEditSave}
+      />
+
+      <MarkDoneModal
+        visible={markDoneItem != null}
+        itemName={markDoneItem?.item_name ?? ""}
+        odometerLabel={formatDistance(vehicle.current_km, unit)}
+        shops={shops}
+        onCancel={() => setMarkDoneItem(null)}
+        onSubmit={handleMarkDoneSubmit}
       />
     </View>
   );

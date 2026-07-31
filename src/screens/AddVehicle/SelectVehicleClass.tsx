@@ -1,26 +1,40 @@
-import { StyleSheet, Text, View } from "react-native";
-import { colors, spacing, typography } from "../../theme";
+import { ScrollView, StyleSheet } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import type { VehicleClass } from "../../types/models";
+import type { AddVehicleStackParamList } from "./WizardContext";
+import WizardProgress from "../../components/WizardProgress";
+import Card from "../../components/Card";
+import ListRow from "../../components/ListRow";
+import { colors, spacing } from "../../theme";
 
-export default function SelectVehicleClass() {
+type Props = NativeStackScreenProps<AddVehicleStackParamList, "SelectVehicleClass">;
+
+const OPTIONS: { value: VehicleClass; label: string; icon: "motorbike" | "car" }[] = [
+  { value: "motorcycle", label: "Motorcycle", icon: "motorbike" },
+  { value: "car", label: "Car", icon: "car" },
+];
+
+export default function SelectVehicleClass({ navigation }: Props) {
   return (
-    <View style={styles.container}>
-      <Text style={typography.title}>Select Vehicle Class</Text>
-      <Text style={[typography.body, styles.caption]}>Coming in M3 (add vehicle wizard).</Text>
-    </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <WizardProgress step={1} total={4} label="What are you adding?" />
+      {OPTIONS.map((option) => (
+        <Card key={option.value} style={styles.cardSpacing}>
+          <ListRow
+            leading={<MaterialCommunityIcons name={option.icon} size={28} color={colors.primary} />}
+            title={option.label}
+            showChevron={false}
+            onPress={() => navigation.navigate("SelectBrand", { vehicleClass: option.value })}
+          />
+        </Card>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-  },
-  caption: {
-    marginTop: spacing.sm,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { padding: spacing.md },
+  cardSpacing: { marginBottom: spacing.sm },
 });

@@ -1,26 +1,60 @@
-import { StyleSheet, Text, View } from "react-native";
-import { colors, spacing, typography } from "../../theme";
+import { useEffect, useState } from "react";
+import { FlatList, View } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { listVehicleTypesByBrand } from "../../repositories/catalogRepository";
+import type { VehicleType } from "../../types/models";
+import type { AddVehicleStackParamList } from "./WizardContext";
+import WizardProgress from "../../components/WizardProgress";
+import Card from "../../components/Card";
+import ListRow from "../../components/ListRow";
+import { showErrorAlert } from "../../utils/errorAlert";
+import { spacing } from "../../theme";
 
-export default function Step2SelectType() {
+type Props = NativeStackScreenProps<AddVehicleStackParamList, "SelectType">;
+
+export default function Step2SelectType({ route, navigation }: Props) {
+  const { vehicleClass, brandId, brandName } = route.params;
+  const [types, setTypes] = useState<VehicleType[]>([]);
+
+  useEffect(() => {
+    listVehicleTypesByBrand(brandId, vehicleClass)
+      .then(setTypes)
+      .catch((err) => showErrorAlert("Couldn't load models", err));
+  }, [brandId, vehicleClass]);
+
   return (
-    <View style={styles.container}>
-      <Text style={typography.title}>Select Type</Text>
-      <Text style={[typography.body, styles.caption]}>Coming in M3 (add vehicle wizard).</Text>
-    </View>
+    <FlatList
+      data={types}
+      keyExtractor={(item) => String(item.id)}
+      contentContainerStyle={{ padding: spacing.md }}
+      ListHeaderComponent={
+        <WizardProgress step={3} total={4} label={`Select ${brandName} Model`} />
+      }
+      renderItem={({ item }) => (
+        <View style={{ marginBottom: spacing.md }}>
+          <Card>
+            <ListRow
+              title={item.name}
+              onPress={() =>
+                navigation.navigate("Details", {
+                  vehicleClass,
+                  brandName,
+                  vehicleTypeId: item.id,
+                  vehicleTypeName: item.name,
+                })
+              }
+            />
+          </Card>
+        </View>
+      )}
+      ListFooterComponent={
+        <Card>
+          <ListRow
+            title="My model isn't listed"
+            onPress={() => navigation.navigate("CustomVehicleType", { vehicleClass, brandName })}
+          />
+        </Card>
+      }
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-  },
-  caption: {
-    marginTop: spacing.sm,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
-});
