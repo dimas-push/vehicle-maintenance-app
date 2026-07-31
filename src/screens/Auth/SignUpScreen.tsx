@@ -11,15 +11,11 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { AuthStackParamList } from "../../navigation/AuthNavigator";
 import { useAuth } from "../../context/AuthContext";
 import { showErrorAlert } from "../../utils/errorAlert";
 import { colors, radius, shadow, spacing, typography } from "../../theme";
 
-type Props = NativeStackScreenProps<AuthStackParamList, "SignUp">;
-
-export default function SignUpScreen({}: Props) {
+export default function SignUpScreen() {
   const { signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
