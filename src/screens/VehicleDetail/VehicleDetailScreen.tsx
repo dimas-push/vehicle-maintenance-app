@@ -38,6 +38,7 @@ import { DOCUMENT_TYPE_LABEL, statusFromExpiry } from "../../utils/documentStatu
 import { getReminderThresholds } from "../../utils/reminderSettings";
 import { deleteVehiclePhoto, pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../../services/photos";
 import { notifyDueSchedules } from "../../services/notifications";
+import { exportServiceReportCsv, exportServiceReportPdf } from "../../services/report";
 import { showErrorAlert } from "../../utils/errorAlert";
 import { confirmDestructive } from "../../utils/confirmDestructive";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
@@ -119,7 +120,7 @@ async function loadDetail(vehicleId: number): Promise<DetailData> {
 
 export default function VehicleDetailScreen({ route, navigation }: Props) {
   const { vehicleId } = route.params;
-  const { unit } = useUnitPreference();
+  const { unit, volumeUnit } = useUnitPreference();
   const { data, error, reload } = useAsyncData(useCallback(() => loadDetail(vehicleId), [vehicleId]));
   useFocusRefresh(reload);
 
@@ -248,6 +249,32 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     }
   }
 
+  const handleExportReport = useCallback(() => {
+    Alert.alert("Export Report", "Include service history, fuel log, and documents.", [
+      {
+        text: "PDF",
+        onPress: async () => {
+          try {
+            await exportServiceReportPdf(vehicleId, unit, volumeUnit);
+          } catch (err) {
+            showErrorAlert("Export failed", err);
+          }
+        },
+      },
+      {
+        text: "CSV",
+        onPress: async () => {
+          try {
+            await exportServiceReportCsv(vehicleId);
+          } catch (err) {
+            showErrorAlert("Export failed", err);
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [vehicleId, unit, volumeUnit]);
+
   function handleChangePhoto() {
     Alert.alert("Vehicle Photo", undefined, [
       {
@@ -297,7 +324,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         <View style={styles.headerActions}>
           <IconButton
             icon={<Ionicons name="share-outline" size={22} color={colors.primary} />}
-            onPress={() => comingSoon("Export Report", "M5")}
+            onPress={handleExportReport}
             accessibilityLabel="Export report"
           />
           <IconButton
@@ -313,7 +340,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         </View>
       ),
     });
-  }, [navigation, vehicle, handleDelete]);
+  }, [navigation, vehicle, handleDelete, handleExportReport]);
 
   function handleSnooze(schedule: ScheduleRow) {
     Alert.alert("Snooze reminder", `${schedule.item_name} — hide from notifications for how long?`, [
