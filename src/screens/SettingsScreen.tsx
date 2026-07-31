@@ -17,6 +17,7 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useUnitPreference } from "../context/UnitPreferenceContext";
+import { useAuth } from "../context/AuthContext";
 import { getOwnerProfile, isOwnerProfileEmpty, setOwnerProfile, type OwnerProfile } from "../utils/ownerProfile";
 import EditProfileModal from "./EditProfileModal";
 import { type DistanceUnit, type VolumeUnit, displayToKm, kmToDisplay } from "../utils/units";
@@ -30,6 +31,7 @@ import {
   type NotificationPermissionState,
 } from "../services/notifications";
 import { exportBackup, importBackup } from "../services/backup";
+import { backupToCloud, restoreFromCloud } from "../services/cloudBackup";
 import { showErrorAlert } from "../utils/errorAlert";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import type { VehicleTabsParamList } from "../navigation/VehicleTabs";
@@ -56,11 +58,14 @@ const VOLUME_OPTIONS: { value: VolumeUnit; label: string; hint: string }[] = [
 
 export default function SettingsScreen({ navigation }: Props) {
   const { unit, setUnit, volumeUnit, setVolumeUnit } = useUnitPreference();
+  const { user, isGuest, signOut, returnToLogin } = useAuth();
   const [kmInput, setKmInput] = useState("");
   const [daysInput, setDaysInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [cloudBackingUp, setCloudBackingUp] = useState(false);
+  const [cloudRestoring, setCloudRestoring] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermissionState | null>(null);
   const [profile, setProfile] = useState<OwnerProfile | null>(null);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
@@ -167,6 +172,57 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   }
 
+  function handleSignOut() {
+    Alert.alert("Log out?", "Your vehicle data stays on this device either way.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await signOut();
+          } catch (err) {
+            showErrorAlert("Couldn't log out", err);
+          }
+        },
+      },
+    ]);
+  }
+
+  async function handleCloudBackup() {
+    if (!user) return;
+    setCloudBackingUp(true);
+    try {
+      await backupToCloud(user.uid);
+      Alert.alert("Backed up", "Your data has been backed up to the cloud.");
+    } catch (err) {
+      showErrorAlert("Cloud backup failed", err);
+    } finally {
+      setCloudBackingUp(false);
+    }
+  }
+
+  async function handleCloudRestore() {
+    if (!user) return;
+    setCloudRestoring(true);
+    try {
+      const summary = await restoreFromCloud(user.uid);
+      if (!summary) {
+        Alert.alert("No cloud backup found", "This account hasn't backed up to the cloud yet.");
+        return;
+      }
+      const skippedNote =
+        summary.vehiclesSkipped.length > 0
+          ? "\n\nSkipped (unknown vehicle type): " + summary.vehiclesSkipped.join(", ")
+          : "";
+      Alert.alert("Restore complete", "Imported " + summary.vehiclesImported + " vehicle(s)." + skippedNote);
+    } catch (err) {
+      showErrorAlert("Cloud restore failed", err);
+    } finally {
+      setCloudRestoring(false);
+    }
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {profile && (
@@ -188,6 +244,22 @@ export default function SettingsScreen({ navigation }: Props) {
             onPress={() => setProfileModalVisible(true)}
           />
         </Card>
+      )}
+
+      {(user || isGuest) && (
+        <>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <Card style={styles.section}>
+            <Text style={styles.hint}>
+              {user ? `Signed in as ${user.email}` : "Not signed in — vehicle data still stays on this device."}
+            </Text>
+            <OutlineButton
+              icon={user ? "log-out-outline" : "log-in-outline"}
+              label={user ? "Log Out" : "Log In"}
+              onPress={user ? handleSignOut : returnToLogin}
+            />
+          </Card>
+        </>
       )}
 
       <Text style={styles.sectionTitle}>Distance Unit</Text>
@@ -271,8 +343,9 @@ export default function SettingsScreen({ navigation }: Props) {
       <Text style={styles.sectionTitle}>Backup & Restore</Text>
       <Card style={styles.section}>
         <Text style={styles.hint}>
-          Your data lives only on this device. Export a backup file regularly, or before uninstalling or switching
-          phones.
+          {user
+            ? "Export a backup file, or back it up to the cloud tied to your account."
+            : "Your data lives only on this device. Export a backup file regularly, or before uninstalling or switching phones."}
         </Text>
         <OutlineButton icon="download-outline" label="Export Backup" onPress={handleExport} loading={exporting} />
         <View style={styles.buttonSpacing}>
@@ -283,6 +356,26 @@ export default function SettingsScreen({ navigation }: Props) {
             loading={importing}
           />
         </View>
+        {user && (
+          <>
+            <View style={styles.buttonSpacing}>
+              <OutlineButton
+                icon="cloud-upload-outline"
+                label="Back Up to Cloud"
+                onPress={handleCloudBackup}
+                loading={cloudBackingUp}
+              />
+            </View>
+            <View style={styles.buttonSpacing}>
+              <OutlineButton
+                icon="cloud-download-outline"
+                label="Restore from Cloud"
+                onPress={handleCloudRestore}
+                loading={cloudRestoring}
+              />
+            </View>
+          </>
+        )}
       </Card>
 
       <Text style={styles.sectionTitle}>Service Shops</Text>
