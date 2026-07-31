@@ -39,6 +39,7 @@ import { getReminderThresholds } from "../../utils/reminderSettings";
 import { deleteVehiclePhoto, pickVehiclePhotoFromLibrary, takeVehiclePhoto } from "../../services/photos";
 import { notifyDueSchedules } from "../../services/notifications";
 import { exportServiceReportCsv, exportServiceReportPdf } from "../../services/report";
+import { checkRecallsForVehicle } from "../../services/recalls";
 import { showErrorAlert } from "../../utils/errorAlert";
 import { confirmDestructive } from "../../utils/confirmDestructive";
 import { useUnitPreference } from "../../context/UnitPreferenceContext";
@@ -74,11 +75,6 @@ interface DetailData {
 function formatDueDate(iso: string | null): string {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
-}
-
-/** Placeholder for actions whose real UI (a FormSheet modal or an external service) lands in a later milestone — keeps the button honest instead of silently doing nothing. */
-function comingSoon(feature: string, milestone: string) {
-  Alert.alert(feature, `Coming in ${milestone}.`);
 }
 
 /**
@@ -129,6 +125,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const [markDoneItem, setMarkDoneItem] = useState<ScheduleRow | null>(null);
   const [documentModalVisible, setDocumentModalVisible] = useState(false);
   const [loanModalVisible, setLoanModalVisible] = useState(false);
+  const [checkingRecalls, setCheckingRecalls] = useState(false);
 
   useEffect(() => {
     if (error) showErrorAlert("Couldn't load vehicle", error);
@@ -369,6 +366,18 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
     }
   }
 
+  async function handleCheckRecalls() {
+    setCheckingRecalls(true);
+    try {
+      await checkRecallsForVehicle(vehicleId);
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't check recalls", err);
+    } finally {
+      setCheckingRecalls(false);
+    }
+  }
+
   function confirmDeleteDocument(doc: VehicleDocument) {
     confirmDestructive("Delete this reminder?", doc.label, async () => {
       try {
@@ -466,8 +475,9 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                   right={
                     <IconButton
                       icon={<Ionicons name="refresh-outline" size={18} color={colors.primary} />}
-                      onPress={() => comingSoon("Check Recalls", "M7")}
+                      onPress={handleCheckRecalls}
                       accessibilityLabel="Check for recalls"
+                      disabled={checkingRecalls}
                     />
                   }
                 />
@@ -490,11 +500,13 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                   recalls.length === 0 ? (
                     <Text
                       style={styles.inlineRecallCheckText}
-                      onPress={() => comingSoon("Check Recalls", "M7")}
+                      onPress={checkingRecalls ? undefined : handleCheckRecalls}
                     >
-                      {vehicle.recalls_checked_at == null
-                        ? "Check for recalls"
-                        : `No recalls · checked ${formatDueDate(vehicle.recalls_checked_at)}`}
+                      {checkingRecalls
+                        ? "Checking recalls…"
+                        : vehicle.recalls_checked_at == null
+                          ? "Check for recalls"
+                          : `No recalls · checked ${formatDueDate(vehicle.recalls_checked_at)}`}
                     </Text>
                   ) : undefined
                 }
