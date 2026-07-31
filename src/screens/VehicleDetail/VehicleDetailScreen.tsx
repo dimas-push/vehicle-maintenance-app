@@ -17,13 +17,14 @@ import {
   recordMaintenanceDone,
   snoozeSchedule,
 } from "../../repositories/scheduleRepository";
-import { deleteDocument, listDocumentsForVehicle } from "../../repositories/documentRepository";
+import { createDocument, deleteDocument, listDocumentsForVehicle } from "../../repositories/documentRepository";
 import { listOdometerReadings, recordOdometerReading } from "../../repositories/odometerRepository";
-import { getLoanForVehicle, summarizeLoan } from "../../repositories/loanRepository";
+import { getLoanForVehicle, setLoanForVehicle, summarizeLoan } from "../../repositories/loanRepository";
 import { listRecallsForVehicle } from "../../repositories/recallRepository";
 import { listExpensesForVehicle } from "../../repositories/expenseRepository";
 import { listShops } from "../../repositories/shopRepository";
 import type {
+  DocumentType,
   MaintenanceSchedule,
   ServiceShop,
   VehicleDocument,
@@ -53,6 +54,8 @@ import QuickActionButton from "../../components/QuickActionButton";
 import UpdateKmModal from "./UpdateKmModal";
 import EditVehicleModal, { type EditVehicleSubmitValues } from "./EditVehicleModal";
 import MarkDoneModal from "./MarkDoneModal";
+import AddDocumentModal from "./AddDocumentModal";
+import AddLoanModal from "./AddLoanModal";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VehicleDetail">;
 type ScheduleRow = MaintenanceSchedule & { item_name: string };
@@ -123,6 +126,8 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
   const [kmModalVisible, setKmModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [markDoneItem, setMarkDoneItem] = useState<ScheduleRow | null>(null);
+  const [documentModalVisible, setDocumentModalVisible] = useState(false);
+  const [loanModalVisible, setLoanModalVisible] = useState(false);
 
   useEffect(() => {
     if (error) showErrorAlert("Couldn't load vehicle", error);
@@ -210,6 +215,36 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
       await reload();
     } catch (err) {
       showErrorAlert("Couldn't save service record", err);
+    }
+  }
+
+  async function handleAddDocument(documentType: DocumentType, label: string, expiryDate: string) {
+    setDocumentModalVisible(false);
+    try {
+      await createDocument({ vehicle_id: vehicleId, document_type: documentType, label, expiry_date: expiryDate });
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't add document", err);
+    }
+  }
+
+  async function handleSaveLoan(
+    lender: string | null,
+    monthlyPayment: number,
+    startDate: string,
+    termMonths: number
+  ) {
+    setLoanModalVisible(false);
+    try {
+      await setLoanForVehicle(vehicleId, {
+        lender,
+        monthly_payment: monthlyPayment,
+        start_date: startDate,
+        term_months: termMonths,
+      });
+      await reload();
+    } catch (err) {
+      showErrorAlert("Couldn't save loan", err);
     }
   }
 
@@ -439,7 +474,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                 right={
                   <IconButton
                     icon={<Ionicons name="add-circle-outline" size={18} color={colors.primary} />}
-                    onPress={() => comingSoon("Add Document", "M4")}
+                    onPress={() => setDocumentModalVisible(true)}
                     accessibilityLabel="Add document"
                   />
                 }
@@ -477,7 +512,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                   !loan ? (
                     <IconButton
                       icon={<Ionicons name="add-circle-outline" size={18} color={colors.primary} />}
-                      onPress={() => comingSoon("Add Loan", "M4")}
+                      onPress={() => setLoanModalVisible(true)}
                       accessibilityLabel="Add loan"
                     />
                   ) : undefined
@@ -494,7 +529,7 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
                           ? "Paid off"
                           : `${summary.monthsRemaining} month(s) left · payoff ${formatDueDate(summary.payoffDate)}`
                       }
-                      onPress={() => comingSoon("Edit Loan", "M4")}
+                      onPress={() => setLoanModalVisible(true)}
                     />
                   );
                 })()
@@ -582,6 +617,19 @@ export default function VehicleDetailScreen({ route, navigation }: Props) {
         shops={shops}
         onCancel={() => setMarkDoneItem(null)}
         onSubmit={handleMarkDoneSubmit}
+      />
+
+      <AddDocumentModal
+        visible={documentModalVisible}
+        onCancel={() => setDocumentModalVisible(false)}
+        onSubmit={handleAddDocument}
+      />
+
+      <AddLoanModal
+        visible={loanModalVisible}
+        existing={loan}
+        onCancel={() => setLoanModalVisible(false)}
+        onSubmit={handleSaveLoan}
       />
     </View>
   );
